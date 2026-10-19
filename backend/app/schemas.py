@@ -98,7 +98,9 @@ class AnalyzeRequest(BaseModel):
     * ``control_chart``: ``params["chart_type"]``: ``"imr"`` | ``"xbar_r"`` | ``"xbar_s"`` |
       ``"p"`` | ``"np"`` | ``"c"`` | ``"u"``. Subgroups come from ``roles["subgroup"]`` (a
       label column) or ``params["subgroup_size"]`` (consecutive rows). Attribute charts
-      take sample sizes from ``roles["sample_size"]`` or ``params["sample_size"]``.
+      take sample sizes from ``roles["sample_size"]`` or ``params["sample_size"]``; a
+      categorical Y on a P/NP chart counts rows equal to ``params["defect_level"]`` (default:
+      its first level) per subgroup.
       Optional ``params["lsl"|"target"|"usl"]`` add a capability section.
     * ``capability``: ``params["lsl"|"target"|"usl"]`` (at least one limit);
       optional ``roles["subgroup"]`` for the within-subgroup sigma.
