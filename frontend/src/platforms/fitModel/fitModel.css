@@ -1,0 +1,150 @@
+/* Fit Model dialog */
+
+.modal.fit-model-dialog {
+  width: min(1000px, 96vw);
+}
+
+.fm-body {
+  display: flex;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.fm-columns {
+  width: 210px;
+  flex-shrink: 0;
+}
+
+.fm-middle {
+  flex: 1;
+  min-width: 0;
+}
+
+.fm-settings {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.fm-effects {
+  display: flex;
+  gap: 8px;
+}
+
+.fm-effect-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fm-effect-buttons .role-button {
+  width: 100px;
+}
+
+.fm-effect-buttons .menu {
+  display: flex;
+}
+
+.fm-macros.open {
+  background: var(--accent-soft);
+}
+
+.launch-list.fm-effect-list {
+  flex: 1;
+  height: 200px;
+}
+
+.fm-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.fm-personality {
+  width: 100%;
+  font: inherit;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.fm-stepwise {
+  margin-top: 10px;
+}
+
+.fm-settings .form-grid select,
+.fm-settings .form-grid input {
+  width: 100%;
+}
+
+/* Prediction profiler */
+
+.profiler {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.profiler-readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 120px;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+}
+
+.profiler-response {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profiler-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #c0392b;
+  font-variant-numeric: tabular-nums;
+}
+
+.profiler-ci {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.profiler-panel {
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.profiler-plot {
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.profiler-setting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+
+.profiler-setting input,
+.profiler-setting select {
+  width: 96px;
+  font: inherit;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.profiler-setting label {
+  font-weight: 600;
+}
