@@ -1,0 +1,50 @@
+/* Graph Builder drop-zone layout with Group X (top) and Group Y (right).
+   Selectors are scoped under .graph-builder so they win over the base rules in styles.css. */
+
+.graph-builder .gb-canvas {
+  grid-template-columns: 44px 1fr 44px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    '. top .'
+    'y plot gy'
+    '. x .';
+}
+
+.graph-builder .gb-top {
+  grid-area: top;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.graph-builder .gb-top .zone-group_x {
+  flex: 1;
+}
+
+.graph-builder .gb-top .zone-overlay {
+  flex: 0 0 auto;
+  min-width: 190px;
+  justify-content: flex-end;
+}
+
+.graph-builder .zone-group_x {
+  justify-content: center;
+}
+
+.graph-builder .zone-group_y {
+  grid-area: gy;
+  flex-direction: row;
+  writing-mode: vertical-rl;
+}
+
+.graph-builder .gb-plot {
+  min-height: 460px;
+}
+
+.graph-builder .gb-note {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 4px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
