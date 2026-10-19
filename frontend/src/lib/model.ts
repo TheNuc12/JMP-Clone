@@ -98,7 +98,8 @@ function partFormula(part: TermPart, levels?: string[] | null): string {
   const ref = formulaRef(part.factor)
   if (part.level !== null && part.level !== undefined) {
     const last = levels?.[levels.length - 1] ?? ''
-    return `Match(${ref}, ${quote(part.level)}, 1, ${quote(last)}, -1, 0)`
+    // A missing factor gives a missing prediction (`., .`), as in partValue.
+    return `Match(${ref}, ${quote(part.level)}, 1, ${quote(last)}, -1, ., ., 0)`
   }
   const base = part.center === 0 ? ref : `(${ref} ${part.center > 0 ? '-' : '+'} ${num(Math.abs(part.center))})`
   return part.power === 1 ? base : `${base} ^ ${part.power}`

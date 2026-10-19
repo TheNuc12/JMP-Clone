@@ -93,7 +93,7 @@ describe('model evaluation', () => {
 describe('prediction formula', () => {
   it('writes the model in the formula language', () => {
     expect(predictionFormula(spec)).toBe(
-      '100 + 2.5 * :height - 4 * Match(:sex, "F", 1, "M", -1, 0) + 0.5 * (:height - 60) * Match(:sex, "F", 1, "M", -1, 0) - 1.25 * (:temp - 5) ^ 2',
+      '100 + 2.5 * :height - 4 * Match(:sex, "F", 1, "M", -1, ., ., 0) + 0.5 * (:height - 60) * Match(:sex, "F", 1, "M", -1, ., ., 0) - 1.25 * (:temp - 5) ^ 2',
     )
   })
 
@@ -114,6 +114,6 @@ describe('prediction formula', () => {
         [0, 0],
       ],
     }
-    expect(predictionFormula(odd)).toBe('-1.5 + 0.125 * (:"body mass" + 3) * Match(:grp, "a \\"1\\"", 1, "b", -1, 0)')
+    expect(predictionFormula(odd)).toBe('-1.5 + 0.125 * (:"body mass" + 3) * Match(:grp, "a \\"1\\"", 1, "b", -1, ., ., 0)')
   })
 })

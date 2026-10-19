@@ -102,5 +102,5 @@ Fit Model's *Save Prediction Formula* uses `formulaRef` with `Match` to write ef
 predictions, for example:
 
 ```
-120.3 + 3.71 * (:height - 62.55) + -4.2 * Match(:sex, "F", 1, "M", -1, 0)
+120.3 + 3.71 * (:height - 62.55) + -4.2 * Match(:sex, "F", 1, "M", -1, ., ., 0)
 ```
