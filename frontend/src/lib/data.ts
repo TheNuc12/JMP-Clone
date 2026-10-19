@@ -19,6 +19,7 @@ export function toAnalysisColumn(column: Column, rows: number[]): AnalysisColumn
     name: column.name,
     modeling_type: column.modelingType,
     values: rows.map((r) => (categorical ? labelAt(column, r) : numberAt(column, r))),
+    levels: categorical ? (column.props.valueOrder ?? null) : null,
   }
 }
 

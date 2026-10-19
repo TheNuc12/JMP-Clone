@@ -3,38 +3,35 @@ import { api } from './api/client'
 import type { DataTablePayload, SampleInfo } from './api/types'
 import { ColumnsPanel, RowsPanel } from './components/ColumnsPanel'
 import { DataGrid } from './components/DataGrid'
-import { FitYByXGuide, LaunchDialog } from './components/LaunchDialog'
-import { Menu } from './components/Menu'
-import { GraphBuilder } from './platforms/GraphBuilder'
-import { DistributionReport, FitYByXReport } from './platforms/Reports'
-import type { ReportConfig } from './state/store'
-import { useStore } from './state/store'
+import { DialogHost } from './components/DialogHost'
+import { Menu, type MenuItem } from './components/Menu'
+import { TableTabs } from './components/TableTabs'
+import { Welcome } from './components/Welcome'
+import { downloadTableCsv } from './lib/csv'
+import { downloadSession, isSessionFile, openSessionFile, startAutosave } from './lib/session'
+import { reportTitle, ReportView } from './platforms/registry'
+import { canRedo, canUndo, useActiveTable, useStore, useTableReports } from './state/store'
 
-type Dialog = 'distribution' | 'fit_y_by_x' | 'about' | null
+const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xlsm,.sift'
 
-const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xlsm'
-
-function reportTitle(r: ReportConfig): string {
-  switch (r.kind) {
-    case 'distribution':
-      return `Distribution · ${r.y.join(', ')}`
-    case 'fit_y_by_x':
-      return `Fit Y by X · ${r.y.join(', ')} by ${r.x.join(', ')}`
-    case 'graph_builder':
-      return `Graph Builder${r.roles.y || r.roles.x ? ` · ${[r.roles.y, r.roles.x].filter(Boolean).join(' vs ')}` : ''}`
-  }
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  return !!el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)
 }
 
 export default function App() {
-  const table = useStore((s) => s.table)
-  const reports = useStore((s) => s.reports)
+  const table = useActiveTable()
+  const hasTables = useStore((s) => s.tables.length > 0)
+  const reports = useTableReports()
   const activeReportId = useStore((s) => s.activeReportId)
-  const nSelected = useStore((s) => s.nSelected)
+  const activeColumnId = useStore((s) => s.activeColumnId)
+  const dialogOpen = useStore((s) => s.dialog !== null)
   const notice = useStore((s) => s.notice)
+  const undoable = useStore(canUndo)
+  const redoable = useStore(canRedo)
   const store = useStore.getState
 
   const [samples, setSamples] = useState<SampleInfo[]>([])
-  const [dialog, setDialog] = useState<Dialog>(null)
   const [busy, setBusy] = useState(false)
   const [dropping, setDropping] = useState(false)
   const [split, setSplit] = useState(0.42)
@@ -45,14 +42,24 @@ export default function App() {
     api.samples().then(setSamples, (e: Error) => store().notify(e.message, 'error'))
   }, [store])
 
+  useEffect(() => startAutosave(), [])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (e.key === 'Escape' && !dialog && !['INPUT', 'TEXTAREA'].includes(target.tagName)) store().clearSelection()
+      if (dialogOpen || isTyping(e.target)) return
+      const mod = e.ctrlKey || e.metaKey
+      if (e.key === 'Escape') store().clearSelection()
+      else if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        store().undo()
+      } else if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        store().redo()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [dialog, store])
+  }, [dialogOpen, store])
 
   useEffect(() => {
     if (!notice) return
@@ -60,13 +67,12 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [notice, store])
 
-  const load = useCallback(
-    async (fetcher: () => Promise<DataTablePayload>) => {
+  const run = useCallback(
+    async (task: () => Promise<string | void>) => {
       setBusy(true)
       try {
-        const payload = await fetcher()
-        store().loadTable(payload)
-        store().notify(`Opened ${payload.name}: ${payload.n_rows} rows, ${payload.columns.length} columns`)
+        const message = await task()
+        if (message) store().notify(message)
       } catch (e) {
         store().notify((e as Error).message, 'error')
       } finally {
@@ -76,8 +82,18 @@ export default function App() {
     [store],
   )
 
-  const openFile = (file: File | undefined) => file && load(() => api.upload(file))
-  const openSample = (id: string) => load(() => api.sample(id))
+  const openTable = (fetcher: () => Promise<DataTablePayload>) =>
+    run(async () => {
+      const payload = await fetcher()
+      store().addTable(payload)
+      return `Opened ${payload.name}: ${payload.n_rows} rows, ${payload.columns.length} columns`
+    })
+
+  const openFile = (file: File | undefined) => {
+    if (!file) return
+    if (isSessionFile(file)) run(async () => (await openSessionFile(file), `Opened session ${file.name}`))
+    else openTable(() => api.upload(file))
+  }
 
   const onDrop = (e: DragEvent) => {
     if (!e.dataTransfer.files.length) return
@@ -99,8 +115,81 @@ export default function App() {
     window.addEventListener('mouseup', up)
   }
 
-  const active = reports.find((r) => r.id === activeReportId)
+  const safely = (action: () => void) => () => {
+    try {
+      action()
+    } catch (e) {
+      store().notify((e as Error).message, 'error')
+    }
+  }
+
   const noTable = !table
+  const open = store().openDialog
+  const nSelected = table?.nSelected ?? 0
+  const active = reports.find((r) => r.id === activeReportId) ?? reports[reports.length - 1]
+
+  const fileMenu: MenuItem[] = [
+    { label: 'New Data Table', onSelect: () => store().newTable() },
+    { label: 'Open…', shortcut: 'CSV · Excel · .sift', onSelect: () => fileInput.current?.click() },
+    { label: '', separator: true },
+    ...samples.map((s) => ({ label: `Sample: ${s.name}`, onSelect: () => openTable(() => api.sample(s.id)), hint: s.description })),
+    { label: '', separator: true },
+    { label: 'Save Session…', disabled: !hasTables, onSelect: safely(downloadSession) },
+    { label: 'Export Table as CSV…', disabled: noTable, onSelect: safely(() => table && downloadTableCsv(table)) },
+    { label: '', separator: true },
+    { label: 'Close Table', disabled: noTable, onSelect: () => store().closeTable() },
+  ]
+  const editMenu: MenuItem[] = [
+    { label: 'Undo', shortcut: 'Ctrl+Z', disabled: !undoable, onSelect: () => store().undo() },
+    { label: 'Redo', shortcut: 'Ctrl+Shift+Z', disabled: !redoable, onSelect: () => store().redo() },
+  ]
+  const rowsMenu: MenuItem[] = [
+    { label: 'Add Rows…', disabled: noTable, onSelect: () => open({ kind: 'add_rows' }) },
+    { label: 'Delete Selected Rows', disabled: noTable || nSelected === 0, onSelect: () => store().deleteRows() },
+    { label: '', separator: true },
+    { label: 'Select All Rows', disabled: noTable, onSelect: () => store().selectAll() },
+    { label: 'Clear Selection', shortcut: 'Esc', disabled: noTable, onSelect: () => store().clearSelection() },
+    { label: 'Invert Selection', disabled: noTable, onSelect: () => store().invertSelection() },
+    { label: '', separator: true },
+    { label: 'Exclude / Unexclude', disabled: noTable || nSelected === 0, onSelect: () => store().toggleExcludeSelected() },
+    { label: 'Clear Row States', disabled: noTable, onSelect: () => store().clearRowStates() },
+  ]
+  const activeColumn = table?.columns.find((c) => c.id === activeColumnId)
+  const colsMenu: MenuItem[] = [
+    { label: 'New Column…', disabled: noTable, onSelect: () => open({ kind: 'new_column' }) },
+    {
+      label: activeColumn ? `Column Info: ${activeColumn.name}…` : 'Column Info…',
+      disabled: !activeColumn,
+      hint: 'Click a column header first',
+      onSelect: () => activeColumn && open({ kind: 'column_info', columnId: activeColumn.id }),
+    },
+    {
+      label: activeColumn ? `Delete Column: ${activeColumn.name}` : 'Delete Column',
+      disabled: !activeColumn,
+      onSelect: () => activeColumn && store().deleteColumns([activeColumn.id]),
+    },
+  ]
+  const doeMenu: MenuItem[] = [
+    { label: 'Full Factorial Design…', onSelect: () => open({ kind: 'doe', design: 'full_factorial' }) },
+    { label: 'Screening Design (Fractional Factorial)…', onSelect: () => open({ kind: 'doe', design: 'fractional_factorial' }) },
+    { label: 'Response Surface Design…', onSelect: () => open({ kind: 'doe', design: 'response_surface' }) },
+    { label: 'Custom Design (D-optimal)…', onSelect: () => open({ kind: 'doe', design: 'custom' }) },
+  ]
+  const analyzeMenu: MenuItem[] = [
+    { label: 'Distribution', disabled: noTable, onSelect: () => open({ kind: 'distribution' }) },
+    { label: 'Fit Y by X', disabled: noTable, onSelect: () => open({ kind: 'fit_y_by_x' }) },
+    { label: 'Fit Model', disabled: noTable, onSelect: () => open({ kind: 'fit_model' }) },
+    { label: '', separator: true },
+    { label: 'Control Chart', disabled: noTable, onSelect: () => open({ kind: 'control_chart' }) },
+    { label: 'Process Capability', disabled: noTable, onSelect: () => open({ kind: 'capability' }) },
+  ]
+  const graphMenu: MenuItem[] = [
+    {
+      label: 'Graph Builder',
+      disabled: noTable,
+      onSelect: () => store().openReport({ kind: 'graph_builder', roles: {}, params: { elements: [] } }),
+    },
+  ]
 
   return (
     <div
@@ -119,45 +208,14 @@ export default function App() {
           <img src="/favicon.svg" alt="" width={20} height={20} />
           Sift
         </div>
-        <Menu
-          trigger="File"
-          items={[
-            { label: 'Open…', shortcut: 'CSV / Excel', onSelect: () => fileInput.current?.click() },
-            { label: '', separator: true },
-            ...samples.map((s) => ({ label: `Sample: ${s.name}`, onSelect: () => openSample(s.id), hint: s.description })),
-            { label: '', separator: true },
-            { label: 'Close Table', disabled: noTable, onSelect: () => store().closeTable() },
-          ]}
-        />
-        <Menu
-          trigger="Rows"
-          items={[
-            { label: 'Select All Rows', disabled: noTable, onSelect: () => store().selectAll() },
-            { label: 'Clear Selection', shortcut: 'Esc', disabled: noTable, onSelect: () => store().clearSelection() },
-            { label: 'Invert Selection', disabled: noTable, onSelect: () => store().invertSelection() },
-            { label: '', separator: true },
-            { label: 'Exclude / Unexclude', disabled: noTable || nSelected === 0, onSelect: () => store().toggleExcludeSelected() },
-            { label: 'Clear Row States', disabled: noTable, onSelect: () => store().clearRowStates() },
-          ]}
-        />
-        <Menu
-          trigger="Analyze"
-          items={[
-            { label: 'Distribution', disabled: noTable, onSelect: () => setDialog('distribution') },
-            { label: 'Fit Y by X', disabled: noTable, onSelect: () => setDialog('fit_y_by_x') },
-          ]}
-        />
-        <Menu
-          trigger="Graph"
-          items={[
-            {
-              label: 'Graph Builder',
-              disabled: noTable,
-              onSelect: () => store().openReport({ kind: 'graph_builder', roles: {}, elements: [] }),
-            },
-          ]}
-        />
-        <Menu trigger="Help" items={[{ label: 'About Sift', onSelect: () => setDialog('about') }]} />
+        <Menu trigger="File" items={fileMenu} />
+        <Menu trigger="Edit" items={editMenu} />
+        <Menu trigger="Rows" items={rowsMenu} />
+        <Menu trigger="Cols" items={colsMenu} />
+        <Menu trigger="DOE" items={doeMenu} />
+        <Menu trigger="Analyze" items={analyzeMenu} />
+        <Menu trigger="Graph" items={graphMenu} />
+        <Menu trigger="Help" items={[{ label: 'About Sift', onSelect: () => open({ kind: 'about' }) }]} />
         <div className="menubar-status">
           {busy && <span className="spinner" />}
           {table && (
@@ -179,7 +237,13 @@ export default function App() {
       </header>
 
       {!table ? (
-        <Welcome samples={samples} busy={busy} onOpenFile={() => fileInput.current?.click()} onOpenSample={openSample} />
+        <Welcome
+          samples={samples}
+          busy={busy}
+          onOpenFile={() => fileInput.current?.click()}
+          onOpenSample={(id) => openTable(() => api.sample(id))}
+          onNewTable={() => store().newTable()}
+        />
       ) : (
         <div className="workspace" ref={workspace}>
           <aside className="sidebar">
@@ -187,6 +251,7 @@ export default function App() {
             <RowsPanel />
           </aside>
           <section className="table-pane" style={{ flexBasis: reports.length ? `${split * 100}%` : '100%' }}>
+            <TableTabs />
             <DataGrid />
           </section>
           {reports.length > 0 && (
@@ -195,9 +260,9 @@ export default function App() {
               <section className="reports-pane">
                 <nav className="tabs" role="tablist">
                   {reports.map((r) => (
-                    <div key={r.id} role="tab" aria-selected={r.id === activeReportId} className={`tab${r.id === activeReportId ? ' active' : ''}`}>
-                      <button className="tab-title" onClick={() => store().setActiveReport(r.id)} title={reportTitle(r)}>
-                        {reportTitle(r)}
+                    <div key={r.id} role="tab" aria-selected={r.id === active?.id} className={`tab${r.id === active?.id ? ' active' : ''}`}>
+                      <button className="tab-title" onClick={() => store().setActiveReport(r.id)} title={reportTitle(r, table)}>
+                        {reportTitle(r, table)}
                       </button>
                       <button className="tab-close" aria-label="Close report" onClick={() => store().closeReport(r.id)}>
                         ×
@@ -205,124 +270,21 @@ export default function App() {
                     </div>
                   ))}
                 </nav>
-                <div className="report-body">
-                  {active?.kind === 'distribution' && <DistributionReport key={active.id} report={active} />}
-                  {active?.kind === 'fit_y_by_x' && <FitYByXReport key={active.id} report={active} />}
-                  {active?.kind === 'graph_builder' && <GraphBuilder key={active.id} report={active} />}
-                </div>
+                <div className="report-body">{active && <ReportView key={active.id} report={active} />}</div>
               </section>
             </>
           )}
         </div>
       )}
 
-      {dialog === 'distribution' && (
-        <LaunchDialog
-          title="Distribution"
-          description="Histograms, quantiles and summary statistics for each column."
-          roles={[{ key: 'y', label: 'Y, Columns', hint: 'One or more columns to describe' }]}
-          onCancel={() => setDialog(null)}
-          onLaunch={(a) => {
-            store().openReport({ kind: 'distribution', y: a.y, options: {} })
-            setDialog(null)
-          }}
-        />
-      )}
-      {dialog === 'fit_y_by_x' && (
-        <LaunchDialog
-          title="Fit Y by X"
-          description="Relationship between two variables. The analysis depends on their modeling types."
-          roles={[
-            { key: 'y', label: 'Y, Response', hint: 'Response column(s)' },
-            { key: 'x', label: 'X, Factor', hint: 'Factor column(s)' },
-          ]}
-          aside={<FitYByXGuide />}
-          onCancel={() => setDialog(null)}
-          onLaunch={(a) => {
-            store().openReport({ kind: 'fit_y_by_x', y: a.y, x: a.x, options: {} })
-            setDialog(null)
-          }}
-        />
-      )}
-      {dialog === 'about' && <About onClose={() => setDialog(null)} />}
+      <DialogHost />
 
       {notice && (
         <div className={`toast tone-${notice.tone}`} role="status" onClick={() => store().dismissNotice()}>
           {notice.text}
         </div>
       )}
-      {dropping && <div className="drop-overlay">Drop a CSV or Excel file to open it</div>}
-    </div>
-  )
-}
-
-function Welcome({
-  samples,
-  busy,
-  onOpenFile,
-  onOpenSample,
-}: {
-  samples: SampleInfo[]
-  busy: boolean
-  onOpenFile: () => void
-  onOpenSample: (id: string) => void
-}) {
-  return (
-    <main className="welcome">
-      <div className="welcome-inner">
-        <h1>Sift</h1>
-        <p className="tagline">Interactive statistical discovery in your browser. Every graph and table is linked: select rows anywhere and they light up everywhere.</p>
-        <button className="primary big" onClick={onOpenFile} disabled={busy}>
-          Open a CSV or Excel file…
-        </button>
-        <p className="muted">or drop a file anywhere on this page</p>
-        <h2>Sample data</h2>
-        <div className="sample-grid">
-          {samples.map((s) => (
-            <button key={s.id} className="sample-card" onClick={() => onOpenSample(s.id)} disabled={busy}>
-              <strong>{s.name}</strong>
-              <span>{s.description}</span>
-              <span className="muted">
-                {s.n_rows} rows · {s.n_cols} columns
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </main>
-  )
-}
-
-function About({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal about" role="dialog" aria-modal="true" aria-label="About Sift">
-        <header className="modal-header">
-          <h2>About Sift</h2>
-        </header>
-        <div className="about-body">
-          <p>Sift is an open-source tool for exploring data interactively, inspired by desktop statistical discovery software.</p>
-          <ul>
-            <li>
-              <strong>Analyze › Distribution</strong>: histograms, quantiles, summary statistics, normal fit.
-            </li>
-            <li>
-              <strong>Analyze › Fit Y by X</strong>: bivariate, oneway, logistic or contingency analysis, chosen from the modeling types.
-            </li>
-            <li>
-              <strong>Graph › Graph Builder</strong>: drag columns onto X, Y and Overlay.
-            </li>
-            <li>Click or drag across points, bars or rows to select; shift adds, ctrl/cmd toggles, Esc clears.</li>
-            <li>Rows › Exclude / Unexclude removes the selected rows from every analysis.</li>
-            <li>Click a column's modeling-type icon to change how it is analyzed.</li>
-          </ul>
-        </div>
-        <footer className="modal-footer">
-          <button className="primary" onClick={onClose}>
-            Close
-          </button>
-        </footer>
-      </div>
+      {dropping && <div className="drop-overlay">Drop a CSV, Excel or .sift file to open it</div>}
     </div>
   )
 }

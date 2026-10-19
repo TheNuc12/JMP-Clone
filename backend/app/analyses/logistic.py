@@ -112,7 +112,7 @@ def analyze(y_col: AnalysisColumn, x_col: AnalysisColumn, options: dict[str, boo
     keep = [i for i, (yv, xv) in enumerate(zip(y_all, x_all)) if yv is not None and math.isfinite(xv)]
     x = x_all[keep]
     y = [y_all[i] for i in keep]
-    levels = levels_of(y)
+    levels = levels_of(y, y_col.levels)
     n, L = len(keep), len(levels)
 
     def result(children):

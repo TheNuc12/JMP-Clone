@@ -1,137 +1,161 @@
-import { useEffect, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
-import { useStore } from '../state/store'
+import { useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import type { Column } from '../state/store'
+import { useActiveTable, useStore } from '../state/store'
 import { COLUMN_DRAG_TYPE } from './ColumnsPanel'
+import { Modal } from './Modal'
 import { ModelingIcon } from './ModelingIcon'
 
 export interface RoleSpec {
   key: string
   label: string
   hint: string
+  /** Default true: OK stays disabled until the role has a column. */
+  required?: boolean
+  /** Maximum number of columns; casting into a full single-column role replaces it. */
+  max?: number
+  /** Columns the role accepts; others are refused with `acceptHint`. */
+  accept?: (column: Column) => boolean
+  acceptHint?: string
 }
 
 interface Props {
   title: string
   description: string
   roles: RoleSpec[]
+  /** Pre-filled role assignments (column ids). */
+  initial?: Record<string, string[]>
+  /** Extra settings shown under the roles. */
   aside?: ReactNode
+  /** Extra condition for enabling OK (e.g. a valid setting in `aside`). */
+  canLaunch?: (assignments: Record<string, string[]>) => boolean
   onLaunch: (assignments: Record<string, string[]>) => void
   onCancel: () => void
+  className?: string
 }
 
-/** Platform launch window: select columns and cast them into roles. */
-export function LaunchDialog({ title, description, roles, aside, onLaunch, onCancel }: Props) {
-  const table = useStore((s) => s.table)
+/** Platform launch window: select columns and cast them into roles. Assignments are column ids. */
+export function LaunchDialog({ title, description, roles, initial, aside, canLaunch, onLaunch, onCancel, className = '' }: Props) {
+  const table = useActiveTable()
+  const notify = useStore((s) => s.notify)
   const [picked, setPicked] = useState<string[]>([])
   const [anchor, setAnchor] = useState<number | null>(null)
-  const [assigned, setAssigned] = useState<Record<string, string[]>>(() => Object.fromEntries(roles.map((r) => [r.key, []])))
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
+  const [assigned, setAssigned] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(roles.map((r) => [r.key, initial?.[r.key] ?? []])),
+  )
 
   if (!table) return null
-  const names = table.columns.map((c) => c.name)
+  const ids = table.columns.map((c) => c.id)
+  const byId = new Map(table.columns.map((c) => [c.id, c]))
 
   const pick = (index: number, e: MouseEvent) => {
-    const name = names[index]
+    const id = ids[index]
     if (e.shiftKey && anchor !== null) {
       const [a, b] = anchor < index ? [anchor, index] : [index, anchor]
-      setPicked(names.slice(a, b + 1))
+      setPicked(ids.slice(a, b + 1))
     } else if (e.ctrlKey || e.metaKey) {
-      setPicked(picked.includes(name) ? picked.filter((p) => p !== name) : [...picked, name])
+      setPicked(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id])
       setAnchor(index)
     } else {
-      setPicked([name])
+      setPicked([id])
       setAnchor(index)
     }
   }
 
-  const cast = (role: string, columns: string[]) => {
-    if (!columns.length) return
-    setAssigned((a) => ({ ...a, [role]: [...a[role], ...columns.filter((c) => !a[role].includes(c))] }))
+  const cast = (roleKey: string, columnIds: string[]) => {
+    const role = roles.find((r) => r.key === roleKey)!
+    const accepted = columnIds.filter((id) => !role.accept || role.accept(byId.get(id)!))
+    if (accepted.length < columnIds.length) notify(role.acceptHint ?? `Some columns can't be used as ${role.label}.`, 'error')
+    if (!accepted.length) return
+    setAssigned((a) => {
+      let next = [...a[roleKey], ...accepted.filter((c) => !a[roleKey].includes(c))]
+      if (role.max !== undefined && next.length > role.max) next = next.slice(-role.max)
+      return { ...a, [roleKey]: next }
+    })
     setPicked([])
   }
 
-  const remove = (role: string, column: string) => setAssigned((a) => ({ ...a, [role]: a[role].filter((c) => c !== column) }))
+  const remove = (role: string, id: string) => setAssigned((a) => ({ ...a, [role]: a[role].filter((c) => c !== id) }))
 
   const onDrop = (role: string) => (e: DragEvent) => {
     e.preventDefault()
     const name = e.dataTransfer.getData(COLUMN_DRAG_TYPE)
-    if (name) cast(role, picked.includes(name) ? picked : [name])
+    const column = table.columns.find((c) => c.id === name || c.name === name)
+    if (column) cast(role, picked.includes(column.id) ? picked : [column.id])
   }
 
-  const ready = roles.every((r) => assigned[r.key].length > 0)
-  const typeOf = (name: string) => table.columns.find((c) => c.name === name)!.modelingType
+  const ready = roles.every((r) => r.required === false || assigned[r.key].length > 0) && (!canLaunch || canLaunch(assigned))
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div className="modal launch-dialog" role="dialog" aria-modal="true" aria-label={title}>
-        <header className="modal-header">
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </header>
-        <div className="launch-body">
-          <div className="launch-columns">
-            <div className="launch-section-title">Select Columns</div>
-            <ul className="launch-list" role="listbox" aria-multiselectable="true">
-              {names.map((name, i) => (
-                <li
-                  key={name}
-                  role="option"
-                  aria-selected={picked.includes(name)}
-                  className={picked.includes(name) ? 'picked' : ''}
-                  onMouseDown={(e) => {
-                    if (e.shiftKey) e.preventDefault()
-                  }}
-                  onClick={(e) => pick(i, e)}
-                  onDoubleClick={() => cast(roles[0].key, [name])}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData(COLUMN_DRAG_TYPE, name)}
-                >
-                  <ModelingIcon type={typeOf(name)} /> {name}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="launch-roles">
-            <div className="launch-section-title">Cast Selected Columns into Roles</div>
-            {roles.map((role) => (
-              <div key={role.key} className="role-row">
-                <button className="role-button" onClick={() => cast(role.key, picked)} disabled={!picked.length} title={role.hint}>
-                  {role.label}
-                </button>
-                <ul
-                  className="role-list"
-                  onDragOver={(e) => e.dataTransfer.types.includes(COLUMN_DRAG_TYPE) && e.preventDefault()}
-                  onDrop={onDrop(role.key)}
-                >
-                  {assigned[role.key].length === 0 && <li className="role-placeholder">{role.hint}</li>}
-                  {assigned[role.key].map((c) => (
-                    <li key={c}>
-                      <ModelingIcon type={typeOf(c)} /> {c}
-                      <button className="chip-remove" aria-label={`Remove ${c}`} onClick={() => remove(role.key, c)}>
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            {aside}
-          </div>
-        </div>
-        <footer className="modal-footer">
+    <Modal
+      title={title}
+      description={description}
+      onClose={onCancel}
+      className={`launch-dialog ${className}`}
+      footer={
+        <>
           <button onClick={onCancel}>Cancel</button>
           <button className="primary" disabled={!ready} onClick={() => onLaunch(assigned)}>
             OK
           </button>
-        </footer>
+        </>
+      }
+    >
+      <div className="launch-body">
+        <div className="launch-columns">
+          <div className="launch-section-title">Select Columns</div>
+          <ul className="launch-list" role="listbox" aria-multiselectable="true">
+            {table.columns.map((c, i) => (
+              <li
+                key={c.id}
+                role="option"
+                aria-selected={picked.includes(c.id)}
+                className={picked.includes(c.id) ? 'picked' : ''}
+                onMouseDown={(e) => {
+                  if (e.shiftKey) e.preventDefault()
+                }}
+                onClick={(e) => pick(i, e)}
+                onDoubleClick={() => cast(roles[0].key, [c.id])}
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData(COLUMN_DRAG_TYPE, c.id)}
+              >
+                <ModelingIcon type={c.modelingType} /> {c.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="launch-roles">
+          <div className="launch-section-title">Cast Selected Columns into Roles</div>
+          {roles.map((role) => (
+            <div key={role.key} className="role-row">
+              <button className="role-button" onClick={() => cast(role.key, picked)} disabled={!picked.length} title={role.hint}>
+                {role.label}
+                {role.required === false && <span className="role-optional">optional</span>}
+              </button>
+              <ul
+                className="role-list"
+                onDragOver={(e) => e.dataTransfer.types.includes(COLUMN_DRAG_TYPE) && e.preventDefault()}
+                onDrop={onDrop(role.key)}
+              >
+                {assigned[role.key].length === 0 && <li className="role-placeholder">{role.hint}</li>}
+                {assigned[role.key].map((id) => {
+                  const c = byId.get(id)
+                  if (!c) return null
+                  return (
+                    <li key={id}>
+                      <ModelingIcon type={c.modelingType} /> {c.name}
+                      <button className="chip-remove" aria-label={`Remove ${c.name}`} onClick={() => remove(role.key, id)}>
+                        ×
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+          {aside}
+        </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

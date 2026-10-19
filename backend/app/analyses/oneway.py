@@ -30,7 +30,7 @@ def analyze(y_col: AnalysisColumn, x_col: AnalysisColumn, options: dict[str, boo
     keep = [i for i, (yv, xv) in enumerate(zip(y_all, x_all)) if xv is not None and math.isfinite(yv)]
     y = y_all[keep]
     xl = [x_all[i] for i in keep]
-    levels = levels_of(xl)
+    levels = levels_of(xl, x_col.levels)
     groups = [y[[lab == level for lab in xl]] for level in levels] if keep else []
     n, k = y.size, len(levels)
 

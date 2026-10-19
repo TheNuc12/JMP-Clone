@@ -3,29 +3,36 @@ import type { Layout } from 'plotly.js'
 import { axis, PlotlyChart } from '../components/PlotlyChart'
 import { ModelingIcon } from '../components/ModelingIcon'
 import { COLUMN_DRAG_TYPE } from '../components/ColumnsPanel'
-import type { GBRole, ReportConfig } from '../state/store'
-import { findColumn, includedRows, useStore } from '../state/store'
+import type { GBElement, GBRole, ReportConfig } from '../state/store'
+import { findColumn, includedRows, useActiveTable, useStore } from '../state/store'
 import { availableElements, buildGraph, defaultElements, ELEMENT_LABELS, toggleElement } from './graphBuilderTraces'
 
-type GBConfig = Extract<ReportConfig, { kind: 'graph_builder' }>
+const ROLE_LABELS: Record<GBRole, string> = { x: 'X', y: 'Y', overlay: 'Overlay', group_x: 'Group X', group_y: 'Group Y' }
 
-const ROLE_LABELS: Record<GBRole, string> = { x: 'X', y: 'Y', overlay: 'Overlay' }
+/** Elements chosen in a Graph Builder report (stored in its params). */
+export function elementsOf(report: ReportConfig): GBElement[] {
+  return (report.params.elements as GBElement[] | undefined) ?? []
+}
 
 /** Drag columns onto X, Y and Overlay; pick the elements to draw. */
-export function GraphBuilder({ report }: { report: GBConfig }) {
-  const table = useStore((s) => s.table)
-  const excluded = useStore((s) => s.excluded)
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+export function GraphBuilder({ report }: { report: ReportConfig }) {
+  const table = useActiveTable()
   const updateReport = useStore((s) => s.updateReport)
   const [picked, setPicked] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<GBRole | null>(null)
+  const excluded = table!.excluded
+  const selected = table!.selected
+  const nSelected = table!.nSelected
 
-  const x = report.roles.x ? findColumn(table, report.roles.x) : undefined
-  const y = report.roles.y ? findColumn(table, report.roles.y) : undefined
-  const overlay = report.roles.overlay ? findColumn(table, report.roles.overlay) : undefined
+  const roleColumn = (role: GBRole) => {
+    const id = report.roles[role]?.[0]
+    return id ? findColumn(table, id) : undefined
+  }
+  const x = roleColumn('x')
+  const y = roleColumn('y')
+  const overlay = roleColumn('overlay')
   const available = availableElements(x, y)
-  const elements = report.elements.filter((e) => available.includes(e))
+  const elements = elementsOf(report).filter((e) => available.includes(e))
   const rows = useMemo(() => includedRows(excluded), [excluded])
 
   const graph = useMemo(
@@ -43,16 +50,14 @@ export function GraphBuilder({ report }: { report: GBConfig }) {
     [graph],
   )
 
-  const assign = (role: GBRole, column: string | undefined) => {
+  const assign = (role: GBRole, columnId: string | undefined) => {
     updateReport(report.id, (r) => {
-      if (r.kind !== 'graph_builder') return r
-      const roles = { ...r.roles, [role]: column }
-      if (!column) delete roles[role]
-      const nx = roles.x ? findColumn(table, roles.x) : undefined
-      const ny = roles.y ? findColumn(table, roles.y) : undefined
-      // Overlay changes keep the chosen elements; axis changes reset to sensible defaults.
-      const nextElements = role === 'overlay' ? r.elements : defaultElements(nx, ny)
-      return { ...r, roles, elements: nextElements }
+      const roles = { ...r.roles, [role]: columnId ? [columnId] : [] }
+      const nx = roles.x?.[0] ? findColumn(table, roles.x[0]) : undefined
+      const ny = roles.y?.[0] ? findColumn(table, roles.y[0]) : undefined
+      // Axis changes reset the elements to sensible defaults; other roles keep them.
+      const nextElements = role === 'x' || role === 'y' ? defaultElements(nx, ny) : elementsOf(r)
+      return { ...r, roles, params: { ...r.params, elements: nextElements } }
     })
     setPicked(null)
   }
@@ -60,12 +65,13 @@ export function GraphBuilder({ report }: { report: GBConfig }) {
   const onDrop = (role: GBRole) => (e: DragEvent) => {
     e.preventDefault()
     setDragOver(null)
-    const name = e.dataTransfer.getData(COLUMN_DRAG_TYPE)
-    if (name) assign(role, name)
+    const dropped = e.dataTransfer.getData(COLUMN_DRAG_TYPE)
+    const column = table?.columns.find((c) => c.id === dropped || c.name === dropped)
+    if (column) assign(role, column.id)
   }
 
   const zone = (role: GBRole) => {
-    const assigned = report.roles[role]
+    const assigned = findColumn(table, report.roles[role]?.[0] ?? '')?.name
     return (
       <div
         className={`drop-zone zone-${role}${dragOver === role ? ' drag-over' : ''}${picked ? ' armed' : ''}`}
@@ -78,7 +84,7 @@ export function GraphBuilder({ report }: { report: GBConfig }) {
         onDragLeave={() => setDragOver(null)}
         onDrop={onDrop(role)}
         onClick={() => picked && assign(role, picked)}
-        title={picked ? `Assign ${picked} to ${ROLE_LABELS[role]}` : `Drop a column here for ${ROLE_LABELS[role]}`}
+        title={picked ? `Assign ${findColumn(table, picked)?.name} to ${ROLE_LABELS[role]}` : `Drop a column here for ${ROLE_LABELS[role]}`}
       >
         <span className="zone-label">{ROLE_LABELS[role]}</span>
         {assigned ? (
@@ -109,14 +115,14 @@ export function GraphBuilder({ report }: { report: GBConfig }) {
         <ul>
           {table?.columns.map((c) => (
             <li
-              key={c.name}
+              key={c.id}
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData(COLUMN_DRAG_TYPE, c.name)
+                e.dataTransfer.setData(COLUMN_DRAG_TYPE, c.id)
                 e.dataTransfer.effectAllowed = 'copy'
               }}
-              className={picked === c.name ? 'picked' : ''}
-              onClick={() => setPicked(picked === c.name ? null : c.name)}
+              className={picked === c.id ? 'picked' : ''}
+              onClick={() => setPicked(picked === c.id ? null : c.id)}
               title="Drag to a drop zone, or click and then click a zone"
             >
               <ModelingIcon type={c.modelingType} /> {c.name}
@@ -130,16 +136,14 @@ export function GraphBuilder({ report }: { report: GBConfig }) {
             <button
               key={e}
               className={`toggle${elements.includes(e) ? ' on' : ''}`}
-              onClick={() =>
-                updateReport(report.id, (r) => (r.kind === 'graph_builder' ? { ...r, elements: toggleElement(elements, e, single) } : r))
-              }
+              onClick={() => updateReport(report.id, (r) => ({ ...r, params: { ...r.params, elements: toggleElement(elements, e, single) } }))}
             >
               {ELEMENT_LABELS[e]}
             </button>
           ))}
           <span className="spacer" />
           {(x || y || overlay) && (
-            <button className="link-button" onClick={() => updateReport(report.id, (r) => (r.kind === 'graph_builder' ? { ...r, roles: {}, elements: [] } : r))}>
+            <button className="link-button" onClick={() => updateReport(report.id, (r) => ({ ...r, roles: {}, params: { ...r.params, elements: [] } }))}>
               Start over
             </button>
           )}

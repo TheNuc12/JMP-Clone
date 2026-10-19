@@ -22,8 +22,8 @@ def crosstab(y_col: AnalysisColumn, x_col: AnalysisColumn):
         for xv, yv in zip(label_values(x_col), label_values(y_col))
         if xv is not None and yv is not None
     ]
-    x_levels = levels_of([p[0] for p in pairs])
-    y_levels = levels_of([p[1] for p in pairs])
+    x_levels = levels_of([p[0] for p in pairs], x_col.levels)
+    y_levels = levels_of([p[1] for p in pairs], y_col.levels)
     xi = {lev: i for i, lev in enumerate(x_levels)}
     yi = {lev: j for j, lev in enumerate(y_levels)}
     counts = np.zeros((len(x_levels), len(y_levels)), dtype=int)

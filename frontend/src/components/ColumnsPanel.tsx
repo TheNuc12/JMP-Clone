@@ -1,5 +1,5 @@
 import type { ModelingType } from '../api/types'
-import { useStore } from '../state/store'
+import { useActiveTable, useStore } from '../state/store'
 import { Menu } from './Menu'
 import { ModelingIcon } from './ModelingIcon'
 
@@ -10,8 +10,11 @@ const LABELS: Record<ModelingType, string> = { continuous: 'Continuous', ordinal
 
 /** Column list with modeling types (click the icon to change it); columns can be dragged into Graph Builder. */
 export function ColumnsPanel() {
-  const table = useStore((s) => s.table)
+  const table = useActiveTable()
   const setModelingType = useStore((s) => s.setModelingType)
+  const activeColumnId = useStore((s) => s.activeColumnId)
+  const setActiveColumn = useStore((s) => s.setActiveColumn)
+  const openDialog = useStore((s) => s.openDialog)
   if (!table) return null
   return (
     <div className="side-section">
@@ -21,13 +24,16 @@ export function ColumnsPanel() {
       <ul className="column-list">
         {table.columns.map((c) => (
           <li
-            key={c.name}
+            key={c.id}
             draggable
             onDragStart={(e) => {
-              e.dataTransfer.setData(COLUMN_DRAG_TYPE, c.name)
+              e.dataTransfer.setData(COLUMN_DRAG_TYPE, c.id)
               e.dataTransfer.effectAllowed = 'copy'
             }}
-            title={`${c.name} — ${c.dataType}, ${c.modelingType}`}
+            className={activeColumnId === c.id ? 'active' : ''}
+            onClick={() => setActiveColumn(c.id)}
+            onDoubleClick={() => openDialog({ kind: 'column_info', columnId: c.id })}
+            title={`${c.name} — ${c.dataType}, ${c.modelingType}${c.props.formula ? ', formula' : ''}. Double-click for Column Info.`}
           >
             <Menu
               trigger={<ModelingIcon type={c.modelingType} />}
@@ -37,10 +43,15 @@ export function ColumnsPanel() {
                 checked: c.modelingType === t,
                 disabled: t === 'continuous' && c.dataType === 'character',
                 hint: t === 'continuous' && c.dataType === 'character' ? 'Character columns cannot be continuous' : undefined,
-                onSelect: () => setModelingType(c.name, t),
+                onSelect: () => setModelingType(c.id, t),
               }))}
             />
             <span className="column-name">{c.name}</span>
+            {c.props.formula && (
+              <span className={`formula-badge${c.formulaError ? ' error' : ''}`} title={c.formulaError ?? `Formula: ${c.props.formula}`}>
+                ƒ
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -49,10 +60,9 @@ export function ColumnsPanel() {
 }
 
 export function RowsPanel() {
-  const table = useStore((s) => s.table)
-  const nSelected = useStore((s) => s.nSelected)
-  const nExcluded = useStore((s) => s.nExcluded)
+  const table = useActiveTable()
   if (!table) return null
+  const { nSelected, nExcluded } = table
   return (
     <div className="side-section">
       <div className="side-title">Rows</div>

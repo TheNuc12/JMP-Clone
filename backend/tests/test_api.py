@@ -68,7 +68,12 @@ def test_upload_csv(client):
     assert table["name"] == "my data"
     assert table["n_rows"] == 3
     cols = {c["name"]: c for c in table["columns"]}
-    assert cols["a"] == {"name": "a", "data_type": "numeric", "modeling_type": "continuous", "values": [1, 2, 3]}
+    assert {k: cols["a"][k] for k in ("name", "data_type", "modeling_type", "values")} == {
+        "name": "a",
+        "data_type": "numeric",
+        "modeling_type": "continuous",
+        "values": [1, 2, 3],
+    }
     assert cols["b"]["data_type"] == "character"
     assert cols["b"]["values"] == ["x", "y", None]
     assert cols["c"]["values"] == [1.5, None, 2.5]
@@ -169,3 +174,24 @@ def test_options_defaults_reported(client):
             "x": {"name": "x", "modeling_type": "continuous", "values": [1, 2, 3, 4]}}
     options = {o["key"]: o["value"] for o in client.post("/api/analyze", json=body).json()["options"]}
     assert options == {"fit_mean": False, "fit_line": True, "fit_quadratic": False, "correlation": False}
+
+
+def _plots(nodes):
+    for node in nodes:
+        if node["type"] == "plot":
+            yield node["plot"]
+        yield from _plots(node.get("children", []))
+
+
+def test_value_order_controls_levels(client):
+    y = {
+        "name": "response",
+        "modeling_type": "ordinal",
+        "values": ["Same", "Worse", "Improved", "Same", "Other"],
+        "levels": ["Worse", "Same", "Improved", "Not present"],
+    }
+    res = client.post("/api/analyze", json={"platform": "distribution", "y": y})
+    assert res.status_code == 200, res.text
+    (bar,) = [p for p in _plots(res.json()["nodes"]) if p["kind"] == "bar"]
+    # Listed levels first in the given order; unlisted ones after; absent ones dropped.
+    assert bar["levels"] == ["Worse", "Same", "Improved", "Other"]

@@ -10,6 +10,7 @@ export const BAND = 'rgba(192, 57, 43, 0.15)'
 export const DIAMOND = '#2f9e44'
 export const BOX = '#495057'
 export const GRID = '#e9ecef'
+export const REFERENCE = '#c92a2a'
 
 /** Categorical palette for overlays and mosaic cells. */
 export const PALETTE = [

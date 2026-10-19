@@ -4,9 +4,9 @@ import type { BarPlot, HistogramPlot } from '../api/types'
 import { axis, PlotlyChart } from '../components/PlotlyChart'
 import { completeRows, groupRows, numberAt } from '../lib/data'
 import { binCount, binIndex } from '../lib/stats'
-import { BAR, BAR_EDGE, BAR_SELECTED, BOX, DIAMOND, FIT, POINT } from '../lib/theme'
+import { BAR, BAR_EDGE, BAR_SELECTED, BOX, DIAMOND, FIT, POINT, REFERENCE } from '../lib/theme'
 import type { Column } from '../state/store'
-import { useStore } from '../state/store'
+import { useNSelected, useSelected } from '../state/store'
 import { formatNumber } from '../lib/format'
 
 interface PlotProps<S> {
@@ -17,8 +17,8 @@ interface PlotProps<S> {
 
 /** Histogram (with selected rows shaded) and an outlier box plot above it. */
 export function HistogramChart({ spec, rows, columns }: PlotProps<HistogramPlot>) {
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+  const selected = useSelected()
+  const nSelected = useNSelected()
   const column = columns.get(spec.column)
 
   const binned = useMemo(() => {
@@ -121,6 +121,19 @@ export function HistogramChart({ spec, rows, columns }: PlotProps<HistogramPlot>
         unselected: { marker: { opacity: 0.25 } },
       } as Data)
     }
+    const references = spec.reference_lines ?? []
+    for (const ref of references) {
+      shapes.push({
+        type: 'line',
+        xref: 'x',
+        yref: 'paper',
+        x0: ref.value,
+        x1: ref.value,
+        y0: 0,
+        y1: histDomain[1],
+        line: { color: REFERENCE, width: 1.5, dash: 'dash' },
+      })
+    }
     const plotLayout: Partial<Layout> = {
       barmode: 'overlay',
       bargap: 0,
@@ -128,6 +141,16 @@ export function HistogramChart({ spec, rows, columns }: PlotProps<HistogramPlot>
       yaxis: axis({ title: { text: 'Count' }, domain: histDomain, rangemode: 'tozero' }),
       yaxis2: { domain: [0.84, 1], range: [0, 1], showticklabels: false, showgrid: false, zeroline: false, fixedrange: true },
       shapes,
+      annotations: references.map((ref) => ({
+        x: ref.value,
+        y: histDomain[1],
+        xref: 'x' as const,
+        yref: 'paper' as const,
+        yanchor: 'bottom' as const,
+        text: ref.label,
+        showarrow: false,
+        font: { color: REFERENCE, size: 10 },
+      })),
     }
     return { data: traces, layout: plotLayout }
   }, [column, binned, outliers, spec, selected, nSelected])
@@ -145,7 +168,7 @@ export function HistogramChart({ spec, rows, columns }: PlotProps<HistogramPlot>
 
 /** Frequency bar chart for a categorical column; selected rows are shaded. */
 export function BarChart({ spec, rows, columns }: PlotProps<BarPlot>) {
-  const selected = useStore((s) => s.selected)
+  const selected = useSelected()
   const column = columns.get(spec.column)
 
   const groups = useMemo(() => (column ? groupRows(rows, column) : new Map<string, number[]>()), [column, rows])

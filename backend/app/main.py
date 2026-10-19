@@ -10,9 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .analyses import AnalysisRequestError, run_analysis
+from .doe import DoeError, make_design
 from .io import MAX_UPLOAD_BYTES, UploadError, parse_upload
 from .samples import SAMPLES, get_sample, list_samples
-from .schemas import AnalysisResult, AnalyzeRequest, DataTablePayload, SampleInfo
+from .schemas import AnalysisResult, AnalyzeRequest, DataTablePayload, DoeRequest, DoeResult, SampleInfo
 
 logger = logging.getLogger("sift")
 
@@ -60,6 +61,14 @@ def analyze(req: AnalyzeRequest) -> AnalysisResult:
     except Exception as exc:  # pragma: no cover - safety net, analyses handle bad data themselves
         logger.exception("Analysis failed")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+
+
+@app.post("/api/doe", response_model=DoeResult)
+def doe(req: DoeRequest) -> DoeResult:
+    try:
+        return make_design(req)
+    except DoeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # Serve the built frontend (single-process deployment). Must come after the API routes.

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import { formatValue } from '../lib/format'
-import { useStore } from '../state/store'
+import { useActiveTable, useStore } from '../state/store'
 import { ModelingIcon } from './ModelingIcon'
 
 const ROW_H = 24
@@ -14,11 +14,12 @@ const OVERSCAN = 8
  * ctrl/cmd-click to toggle, or drag down the row numbers.
  */
 export function DataGrid() {
-  const table = useStore((s) => s.table)
-  const selected = useStore((s) => s.selected)
-  const excluded = useStore((s) => s.excluded)
+  const table = useActiveTable()
   const selectRows = useStore((s) => s.selectRows)
   const selectRange = useStore((s) => s.selectRange)
+  const activeColumnId = useStore((s) => s.activeColumnId)
+  const setActiveColumn = useStore((s) => s.setActiveColumn)
+  const openDialog = useStore((s) => s.openDialog)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -43,6 +44,7 @@ export function DataGrid() {
   }, [])
 
   if (!table) return null
+  const { selected, excluded } = table
 
   const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN)
   const last = Math.min(table.nRows, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN)
@@ -91,7 +93,7 @@ export function DataGrid() {
         {table.columns.map((c) => {
           const v = c.values[r]
           return (
-            <div key={c.name} className={`grid-cell${typeof v === 'number' ? ' num' : ''}${v === null ? ' missing' : ''}`} style={{ width: COL_W }}>
+            <div key={c.id} className={`grid-cell${typeof v === 'number' ? ' num' : ''}${v === null ? ' missing' : ''}`} style={{ width: COL_W }}>
               {v === null ? (c.dataType === 'numeric' ? '•' : '') : formatValue(v)}
             </div>
           )
@@ -106,9 +108,17 @@ export function DataGrid() {
         <div className="grid-header" style={{ height: HEADER_H, width }}>
           <div className="grid-corner" style={{ width: ROWNUM_W }} />
           {table.columns.map((c) => (
-            <div key={c.name} className="grid-colhead" style={{ width: COL_W }} title={`${c.name} (${c.modelingType})`}>
+            <div
+              key={c.id}
+              className={`grid-colhead${activeColumnId === c.id ? ' active' : ''}`}
+              style={{ width: COL_W }}
+              title={`${c.name} (${c.modelingType}). Double-click for Column Info.`}
+              onClick={() => setActiveColumn(c.id)}
+              onDoubleClick={() => openDialog({ kind: 'column_info', columnId: c.id })}
+            >
               <ModelingIcon type={c.modelingType} />
               <span>{c.name}</span>
+              {c.props.formula && <span className={`formula-badge${c.formulaError ? ' error' : ''}`}>ƒ</span>}
             </div>
           ))}
         </div>

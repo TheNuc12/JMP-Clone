@@ -2,11 +2,18 @@ import { useState, type ReactNode } from 'react'
 import type { CrosstabNode, OptionItem, PlotSpec, ReportNode, SummaryNode, TableNode } from '../api/types'
 import { formatCell, formatNumber } from '../lib/format'
 import { BarChart, HistogramChart } from '../plots/DistributionPlots'
+import { ControlChartChart } from '../plots/ControlChartPlot'
 import { LogisticChart, MosaicChart, OnewayChart, ScatterChart } from '../plots/FitPlots'
+import { IndexedScatterChart } from '../plots/IndexedScatterPlot'
+import { ProfilerChart } from '../plots/ProfilerPlot'
 import type { Column } from '../state/store'
-import { Menu } from './Menu'
+import { Menu, type MenuItem } from './Menu'
 
-/** What plots need to draw individual points: the rows the analysis used and the table's columns. */
+/**
+ * What plots need to draw individual points. `rows` are the table rows sent with the
+ * request, in order, so a backend index i (IndexedScatterPlot, ControlPoint) is row rows[i].
+ * `columns` maps current column names to columns.
+ */
 export interface PlotContext {
   rows: number[]
   columns: Map<string, Column>
@@ -17,6 +24,7 @@ export function Outline({
   initiallyClosed = false,
   options,
   onToggleOption,
+  menuItems = [],
   children,
   level = 0,
 }: {
@@ -24,27 +32,25 @@ export function Outline({
   initiallyClosed?: boolean
   options?: OptionItem[]
   onToggleOption?: (key: string, value: boolean) => void
+  /** Extra red-triangle actions shown below the option toggles. */
+  menuItems?: MenuItem[]
   children: ReactNode
   level?: number
 }) {
   const [open, setOpen] = useState(!initiallyClosed)
+  const toggles: MenuItem[] =
+    options && onToggleOption
+      ? options.map((o) => ({ label: o.label, checked: o.value, disabled: !o.enabled, onSelect: () => onToggleOption(o.key, !o.value) }))
+      : []
+  const items = toggles.length && menuItems.length ? [...toggles, { label: '', separator: true }, ...menuItems] : [...toggles, ...menuItems]
   return (
     <section className={`outline outline-l${Math.min(level, 2)}`}>
       <header className="outline-header">
         <button className="disclosure" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Collapse' : 'Expand'}>
           {open ? '▾' : '▸'}
         </button>
-        {options && options.length > 0 && onToggleOption && (
-          <Menu
-            trigger={<span className="red-triangle" title="Options" aria-label="Options" />}
-            triggerClassName="red-triangle-button"
-            items={options.map((o) => ({
-              label: o.label,
-              checked: o.value,
-              disabled: !o.enabled,
-              onSelect: () => onToggleOption(o.key, !o.value),
-            }))}
-          />
+        {items.length > 0 && (
+          <Menu trigger={<span className="red-triangle" title="Options" aria-label="Options" />} triggerClassName="red-triangle-button" items={items} />
         )}
         <span className="outline-title" onDoubleClick={() => setOpen(!open)}>
           {title}
@@ -110,6 +116,12 @@ function PlotView({ spec, ctx }: { spec: PlotSpec; ctx: PlotContext }) {
       return <MosaicChart spec={spec} {...ctx} />
     case 'logistic':
       return <LogisticChart spec={spec} {...ctx} />
+    case 'indexed_scatter':
+      return <IndexedScatterChart spec={spec} {...ctx} />
+    case 'control_chart':
+      return <ControlChartChart spec={spec} {...ctx} />
+    case 'profiler':
+      return <ProfilerChart spec={spec} {...ctx} />
   }
 }
 

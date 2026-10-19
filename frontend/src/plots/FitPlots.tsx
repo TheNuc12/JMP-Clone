@@ -6,7 +6,7 @@ import { completeRows, labelAt, numberAt, selectedPoints } from '../lib/data'
 import { jitter, rowNoise } from '../lib/random'
 import { BAND, BOX, DIAMOND, FIT, paletteColor, POINT, tint } from '../lib/theme'
 import type { Column } from '../state/store'
-import { useStore } from '../state/store'
+import { useNSelected, useSelected } from '../state/store'
 
 interface PlotProps<S> {
   spec: S
@@ -35,8 +35,8 @@ function pointTrace(xs: number[], ys: number[], rows: number[], selected: Uint8A
 
 /** Bivariate scatter plot with fitted curves and confidence bands. */
 export function ScatterChart({ spec, rows, columns }: PlotProps<ScatterPlot>) {
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+  const selected = useSelected()
+  const nSelected = useNSelected()
   const xCol = columns.get(spec.x)
   const yCol = columns.get(spec.y)
   const used = useMemo(() => (xCol && yCol ? completeRows(rows, [xCol, yCol]) : []), [rows, xCol, yCol])
@@ -99,8 +99,8 @@ export function ScatterChart({ spec, rows, columns }: PlotProps<ScatterPlot>) {
 
 /** Oneway plot: jittered points per level with means diamonds, box plots and the grand mean. */
 export function OnewayChart({ spec, rows, columns }: PlotProps<OnewayPlot>) {
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+  const selected = useSelected()
+  const nSelected = useNSelected()
   const xCol = columns.get(spec.x)
   const yCol = columns.get(spec.y)
   const levelIndex = useMemo(() => new Map(spec.levels.map((l, i) => [l, i])), [spec.levels])
@@ -186,8 +186,8 @@ export function OnewayChart({ spec, rows, columns }: PlotProps<OnewayPlot>) {
 
 /** Mosaic plot: column widths follow X's distribution, heights Y's conditional distribution. */
 export function MosaicChart({ spec, rows, columns }: PlotProps<MosaicPlot>) {
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+  const selected = useSelected()
+  const nSelected = useNSelected()
   const xCol = columns.get(spec.x)
   const yCol = columns.get(spec.y)
 
@@ -277,8 +277,8 @@ function interpolate(xs: number[], ys: number[], x: number): number {
 
 /** Logistic plot: cumulative probability curves with each point placed inside its level's band. */
 export function LogisticChart({ spec, rows, columns }: PlotProps<LogisticPlot>) {
-  const selected = useStore((s) => s.selected)
-  const nSelected = useStore((s) => s.nSelected)
+  const selected = useSelected()
+  const nSelected = useNSelected()
   const xCol = columns.get(spec.x)
   const yCol = columns.get(spec.y)
   const levelIndex = useMemo(() => new Map(spec.y_levels.map((l, i) => [l, i])), [spec.y_levels])

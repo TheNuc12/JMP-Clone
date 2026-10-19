@@ -1,4 +1,4 @@
-import type { AnalysisResult, AnalyzeRequest, DataTablePayload, SampleInfo } from './types'
+import type { AnalysisResult, AnalyzeRequest, DataTablePayload, DoeRequest, DoeResult, SampleInfo } from './types'
 
 export class ApiError extends Error {}
 
@@ -40,5 +40,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
       signal,
+    }),
+
+  doe: (req: DoeRequest) =>
+    request<DoeResult>('/api/doe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
     }),
 }

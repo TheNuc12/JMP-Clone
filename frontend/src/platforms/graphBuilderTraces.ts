@@ -82,7 +82,7 @@ interface Group {
 function overlayGroups(rows: number[], overlay?: Column): Group[] {
   if (!overlay || !cat(overlay)) return [{ label: null, color: POINT, rows }]
   const byLabel = groupRows(rows, overlay)
-  const groups = levelsOf(byLabel.keys()).map((label, i) => ({ label, color: paletteColor(i), rows: byLabel.get(label)! }))
+  const groups = levelsOf(byLabel.keys(), overlay.props.valueOrder).map((label, i) => ({ label, color: paletteColor(i), rows: byLabel.get(label)! }))
   const missing = rows.filter((r) => labelAt(overlay, r) === null)
   if (missing.length) groups.push({ label: 'Missing', color: '#adb5bd', rows: missing })
   return groups
@@ -198,7 +198,7 @@ export function buildGraph(input: GraphInput): Graph {
     const horizontal = cat(y)
     const posCol = horizontal ? y : x
     const valCol = horizontal ? x : y
-    const levels = levelsOf(used.map((r) => labelAt(posCol, r)))
+    const levels = levelsOf(used.map((r) => labelAt(posCol, r)), posCol.props.valueOrder)
     const levelIndex = new Map(levels.map((l, i) => [l, i]))
     const xy = (pos: number[], val: number[]) => (horizontal ? { x: val, y: pos } : { x: pos, y: val })
     const slot = 0.8 / groups.length
@@ -273,8 +273,8 @@ export function buildGraph(input: GraphInput): Graph {
 
   // Categorical by categorical: jittered points in a grid.
   if (x && y) {
-    const xLevels = levelsOf(used.map((r) => labelAt(x, r)))
-    const yLevels = levelsOf(used.map((r) => labelAt(y, r)))
+    const xLevels = levelsOf(used.map((r) => labelAt(x, r)), x.props.valueOrder)
+    const yLevels = levelsOf(used.map((r) => labelAt(y, r)), y.props.valueOrder)
     const xi = new Map(xLevels.map((l, i) => [l, i]))
     const yi = new Map(yLevels.map((l, i) => [l, i]))
     for (const g of groups) {
@@ -297,7 +297,7 @@ export function buildGraph(input: GraphInput): Graph {
   const orient = (pos: (number | string)[], val: (number | string)[]) => (onY ? { x: val, y: pos } : { x: pos, y: val })
 
   if (cat(only)) {
-    const levels = levelsOf(used.map((r) => labelAt(only, r)))
+    const levels = levelsOf(used.map((r) => labelAt(only, r)), only.props.valueOrder)
     const levelIndex = new Map(levels.map((l, i) => [l, i]))
     if (elements.has('bar')) {
       layout.barmode = groups.length > 1 ? 'stack' : 'overlay'

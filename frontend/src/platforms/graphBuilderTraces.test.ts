@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Column } from '../state/store'
 import { availableElements, buildGraph, defaultElements, toggleElement } from './graphBuilderTraces'
 
-const height: Column = { name: 'height', dataType: 'numeric', modelingType: 'continuous', values: [60, 62, null, 65, 70, 58] }
-const weight: Column = { name: 'weight', dataType: 'numeric', modelingType: 'continuous', values: [100, 110, 120, 130, 150, 95] }
-const sex: Column = { name: 'sex', dataType: 'character', modelingType: 'nominal', values: ['F', 'M', 'F', 'M', 'M', null] }
+const height: Column = { id: 'h', props: {}, name: 'height', dataType: 'numeric', modelingType: 'continuous', values: [60, 62, null, 65, 70, 58] }
+const weight: Column = { id: 'w', props: {}, name: 'weight', dataType: 'numeric', modelingType: 'continuous', values: [100, 110, 120, 130, 150, 95] }
+const sex: Column = { id: 's', props: {}, name: 'sex', dataType: 'character', modelingType: 'nominal', values: ['F', 'M', 'F', 'M', 'M', null] }
 const rows = [0, 1, 2, 3, 4, 5]
 const none = new Uint8Array(6)
 

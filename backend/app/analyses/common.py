@@ -53,12 +53,18 @@ def label_values(column: AnalysisColumn) -> list[str | None]:
     return [to_label(v) for v in column.values]
 
 
-def levels_of(labels: Sequence[str | None]) -> list[str]:
-    """Unique non-missing labels, numerically sorted if all are numbers, else string sorted."""
+def levels_of(labels: Sequence[str | None], order: Sequence[str] | None = None) -> list[str]:
+    """Unique non-missing labels in display order.
+
+    Labels named in ``order`` (the column's Value Order property) come first, in that order.
+    The rest are sorted numerically if all are numbers, else as strings.
+    """
     unique = {label for label in labels if label is not None}
-    if unique and all(_is_float(u) for u in unique):
-        return sorted(unique, key=float)
-    return sorted(unique)
+    ordered = [label for label in dict.fromkeys(order or []) if label in unique]
+    rest = unique.difference(ordered)
+    if rest and all(_is_float(u) for u in rest):
+        return ordered + sorted(rest, key=float)
+    return ordered + sorted(rest)
 
 
 def quantile(values: np.ndarray, q: float | Sequence[float]) -> np.ndarray | float:

@@ -196,7 +196,7 @@ def _fitted_normal(v: np.ndarray, mean: float, sd: float):
 def categorical(col: AnalysisColumn, options: dict[str, bool]) -> AnalysisResult:
     labels = label_values(col)
     present = [lab for lab in labels if lab is not None]
-    levels = levels_of(present)
+    levels = levels_of(present, col.levels)
     n, n_missing = len(present), len(labels) - len(present)
     title = f"Distribution of {col.name}"
 
