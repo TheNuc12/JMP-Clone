@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import type { Column } from '../state/store'
 import { useActiveTable, useStore } from '../state/store'
 import { COLUMN_DRAG_TYPE } from './ColumnsPanel'
@@ -28,13 +28,15 @@ interface Props {
   aside?: ReactNode
   /** Extra condition for enabling OK (e.g. a valid setting in `aside`). */
   canLaunch?: (assignments: Record<string, string[]>) => boolean
+  /** Called whenever the role assignments change (e.g. to adapt `aside` settings). */
+  onAssignedChange?: (assignments: Record<string, string[]>) => void
   onLaunch: (assignments: Record<string, string[]>) => void
   onCancel: () => void
   className?: string
 }
 
 /** Platform launch window: select columns and cast them into roles. Assignments are column ids. */
-export function LaunchDialog({ title, description, roles, initial, aside, canLaunch, onLaunch, onCancel, className = '' }: Props) {
+export function LaunchDialog({ title, description, roles, initial, aside, canLaunch, onAssignedChange, onLaunch, onCancel, className = '' }: Props) {
   const table = useActiveTable()
   const notify = useStore((s) => s.notify)
   const [picked, setPicked] = useState<string[]>([])
@@ -42,6 +44,10 @@ export function LaunchDialog({ title, description, roles, initial, aside, canLau
   const [assigned, setAssigned] = useState<Record<string, string[]>>(() =>
     Object.fromEntries(roles.map((r) => [r.key, initial?.[r.key] ?? []])),
   )
+
+  useEffect(() => {
+    onAssignedChange?.(assigned)
+  }, [assigned]) // eslint-disable-line react-hooks/exhaustive-deps -- report changes, not callback identity
 
   if (!table) return null
   const ids = table.columns.map((c) => c.id)

@@ -1,0 +1,81 @@
+.quality-dialog {
+  width: min(820px, 94vw);
+}
+
+.quality-settings {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.quality-settings .form-grid select,
+.quality-settings .form-grid input {
+  width: 100%;
+  max-width: 240px;
+}
+
+.quality-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.spec-fields {
+  display: flex;
+  gap: 8px;
+}
+
+.spec-fields .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  color: #495057;
+  font-size: 12px;
+}
+
+.spec-fields input {
+  width: 100%;
+}
+
+.spec-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.spec-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: #495057;
+  padding: 2px 4px;
+}
+
+.spec-table td {
+  padding: 2px 4px;
+}
+
+.spec-table .spec-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spec-table input {
+  width: 100%;
+  min-width: 56px;
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: #495057;
+}
