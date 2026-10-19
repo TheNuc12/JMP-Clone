@@ -96,7 +96,9 @@ otherwise. A formula column that turns character becomes nominal if it was conti
 name. The same module exports:
 - `checkFormula`, which validates a formula and returns a preview, for editors.
 - `evaluateFormula`, which evaluates against a set of columns.
-- `FUNCTIONS`, the function catalog. Fit Model's *Save Prediction Formula* uses it with `Match` to write effect-coded
+- `FUNCTIONS`, the function catalog.
+
+Fit Model's *Save Prediction Formula* uses `formulaRef` with `Match` to write effect-coded
 predictions, for example:
 
 ```
