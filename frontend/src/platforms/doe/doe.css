@@ -1,0 +1,282 @@
+.modal.doe-dialog {
+  width: min(1180px, 96vw);
+  height: min(860px, 94vh);
+}
+
+.doe-dialog .modal-body {
+  flex: 1;
+}
+
+.doe-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.doe-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.doe-layout.with-result {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .doe-layout.with-result {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.doe-section {
+  margin-bottom: 16px;
+}
+
+.doe-section h3 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+}
+
+.doe-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.doe-section-head h3 {
+  margin: 0;
+}
+
+.doe-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.doe-add button,
+.doe-add-n button {
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.doe-add button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.doe-add-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doe-add-n input {
+  width: 52px;
+}
+
+.doe-grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.doe-grid th {
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  padding: 2px 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.doe-grid td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.doe-grid th:last-child,
+.doe-grid td:last-child {
+  width: 28px;
+  text-align: center;
+}
+
+.doe-dialog input[type='text'],
+.doe-dialog input[type='number'],
+.doe-dialog select {
+  font: inherit;
+  padding: 4px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: #fff;
+  min-width: 0;
+}
+
+.doe-grid input[type='text'],
+.doe-grid select {
+  width: 100%;
+}
+
+.doe-grid select[aria-label='Factor type'] {
+  min-width: 118px;
+}
+
+.doe-factor-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doe-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doe-range input {
+  width: 90px;
+}
+
+.doe-grid .doe-range input {
+  width: 90px;
+}
+
+.doe-options {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.doe-options select {
+  max-width: 340px;
+}
+
+.doe-options .form-label,
+.doe-options > label {
+  color: #495057;
+  align-self: start;
+  padding-top: 5px;
+}
+
+.doe-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.doe-inline input[type='number'] {
+  width: 76px;
+}
+
+.doe-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+
+.doe-seed {
+  width: 96px;
+}
+
+.doe-model {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafbfc;
+}
+
+.doe-model-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doe-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 18px;
+}
+
+.doe-term {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.doe-term.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.doe-errors {
+  margin: 4px 0 12px;
+  padding: 8px 12px 8px 28px;
+  border-radius: 4px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.doe-result {
+  min-width: 0;
+  transition: opacity 0.2s;
+}
+
+.doe-result.is-stale {
+  opacity: 0.55;
+}
+
+.doe-result > .outline:first-child {
+  margin-top: 0;
+}
+
+.doe-preview {
+  margin-top: 10px;
+}
+
+.doe-preview-scroll {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.doe-preview-scroll thead th {
+  position: sticky;
+  top: 0;
+}
+
+.doe-mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.doe-footer-note {
+  margin-right: auto;
+  align-self: center;
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+}
+
+.doe-footer-note strong {
+  color: var(--text);
+}
+
+.doe-stale {
+  color: var(--warning-text);
+}
