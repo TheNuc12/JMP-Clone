@@ -4,7 +4,7 @@ import type { Annotations, Data, Layout, Shape } from 'plotly.js'
 import { completeRows, groupRows, labelAt, numberAt, selectedPoints } from '../lib/data'
 import { levelsOf } from '../lib/levels'
 import { jitter } from '../lib/random'
-import { binCount, binIndex, boxStats, linearFit, lowess, mean, niceBins } from '../lib/stats'
+import { binCount, binIndex, boxStats, kernelSmooth, linearFit, mean, niceBins } from '../lib/stats'
 import { BAR, BAR_EDGE, BAR_SELECTED, BOX, paletteColor, POINT } from '../lib/theme'
 import { formatNumber } from '../lib/format'
 import type { Column, GBElement } from '../state/store'
@@ -222,7 +222,7 @@ export function buildGraph(input: GraphInput): Graph {
         }
       }
       if (elements.has('smoother')) {
-        const s = lowess(xs, ys)
+        const s = kernelSmooth(xs, ys)
         // Sparse groups can make the local fits extrapolate wildly; keep the curve within the data.
         const [lo, hi] = extent(ys) ?? [0, 0]
         data.push(lineTrace(s.x, s.y.map((v) => Math.min(hi, Math.max(lo, v))), g, 'Smoother'))

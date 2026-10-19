@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { formatCell, formatNumber, formatPValue } from './format'
 import { labelOf, levelsOf } from './levels'
 import { jitter, rowNoise } from './random'
-import { binCount, binIndex, boxStats, linearFit, lowess, niceBins, quantileSorted } from './stats'
+import { binCount, binIndex, boxStats, kernelSmooth, linearFit, niceBins, quantileSorted } from './stats'
 
 describe('levels', () => {
   it('labels numbers the way the backend expects', () => {
@@ -71,7 +71,7 @@ describe('stats', () => {
 
   it('smooths linear data back onto the line', () => {
     const xs = Array.from({ length: 50 }, (_, i) => i)
-    const s = lowess(xs, xs.map((x) => 2 * x + 1), 0.5, 20)
+    const s = kernelSmooth(xs, xs.map((x) => 2 * x + 1), 1.5, 20)
     s.x.forEach((x, i) => expect(s.y[i]).toBeCloseTo(2 * x + 1, 6))
   })
 
@@ -100,5 +100,17 @@ describe('random', () => {
       expect(j).toBeGreaterThanOrEqual(-0.25)
       expect(j).toBeLessThan(0.25)
     }
+  })
+})
+
+describe('kernelSmooth', () => {
+  it('is smooth and stays near the data for sparse noisy points', () => {
+    const xs = [160, 165, 171, 174, 180, 183, 190, 197]
+    const ys = [74, 82, 77, 85, 79, 86, 81, 88]
+    const s = kernelSmooth(xs, ys)
+    const steps = s.y.slice(1).map((y, i) => Math.abs(y - s.y[i]))
+    expect(Math.max(...steps)).toBeLessThan(0.5) // no jumps between neighbouring grid points
+    expect(Math.min(...s.y)).toBeGreaterThan(Math.min(...ys))
+    expect(Math.max(...s.y)).toBeLessThan(Math.max(...ys))
   })
 })

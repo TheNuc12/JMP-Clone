@@ -67,59 +67,48 @@ export function linearFit(xs: number[], ys: number[]): { intercept: number; slop
   return { intercept: my - slope * mx, slope, r2: syy === 0 ? 1 : (sxy * sxy) / (sxx * syy) }
 }
 
-/** Locally weighted linear smoother (tricube weights, no robustness iterations). */
-export function lowess(xs: number[], ys: number[], frac = 0.5, gridSize = 100): { x: number[]; y: number[] } {
-  const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b])
-  const sx = order.map((i) => xs[i])
-  const sy = order.map((i) => ys[i])
-  const n = sx.length
-  if (n < 3 || sx[0] === sx[n - 1]) return { x: [], y: [] }
-  const k = Math.min(n, Math.max(3, Math.ceil(frac * n)))
+/**
+ * Smooth curve through (x, y): local linear regression with a Gaussian kernel, which is
+ * smooth by construction even for a handful of points. The bandwidth follows Silverman's
+ * rule of thumb, widened by `smoothness`.
+ */
+export function kernelSmooth(xs: number[], ys: number[], smoothness = 1.5, gridSize = 100): { x: number[]; y: number[] } {
+  const n = xs.length
+  if (n < 3) return { x: [], y: [] }
+  let lo = Infinity
+  let hi = -Infinity
+  for (const x of xs) {
+    if (x < lo) lo = x
+    if (x > hi) hi = x
+  }
+  if (lo === hi) return { x: [], y: [] }
+  const mx = mean(xs)
+  const sd = Math.sqrt(xs.reduce((a, x) => a + (x - mx) ** 2, 0) / (n - 1))
+  const h = smoothness * 1.06 * sd * n ** -0.2
   const gx: number[] = []
   const gy: number[] = []
   for (let g = 0; g < gridSize; g++) {
-    const x0 = sx[0] + ((sx[n - 1] - sx[0]) * g) / (gridSize - 1)
-    // The k nearest neighbours of x0 form a contiguous window of the sorted xs.
-    let lo = lowerBound(sx, x0)
-    let hi = lo
-    while (hi - lo < k) {
-      if (lo === 0) hi++
-      else if (hi === n) lo--
-      else if (x0 - sx[lo - 1] <= sx[hi] - x0) lo--
-      else hi++
-    }
-    const maxDist = Math.max(x0 - sx[lo], sx[hi - 1] - x0) * 1.0001 || 1
+    const x0 = lo + ((hi - lo) * g) / (gridSize - 1)
     let sw = 0
-    let swx = 0
+    let swd = 0
     let swy = 0
-    let swxx = 0
-    let swxy = 0
-    for (let i = lo; i < hi; i++) {
-      const u = Math.abs(sx[i] - x0) / maxDist
-      const w = (1 - u * u * u) ** 3
+    let swdd = 0
+    let swdy = 0
+    for (let i = 0; i < n; i++) {
+      const d = xs[i] - x0
+      const w = Math.exp(-0.5 * (d / h) ** 2)
       sw += w
-      swx += w * sx[i]
-      swy += w * sy[i]
-      swxx += w * sx[i] * sx[i]
-      swxy += w * sx[i] * sy[i]
+      swd += w * d
+      swy += w * ys[i]
+      swdd += w * d * d
+      swdy += w * d * ys[i]
     }
-    const denom = sw * swxx - swx * swx
-    const y0 = Math.abs(denom) < 1e-12 ? swy / sw : (swy * swxx - swx * swxy + x0 * (sw * swxy - swx * swy)) / denom
+    // Weighted least squares line in d = x - x0; its intercept is the fit at x0.
+    const denom = sw * swdd - swd * swd
     gx.push(x0)
-    gy.push(y0)
+    gy.push(Math.abs(denom) < 1e-12 * sw * sw ? swy / sw : (swy * swdd - swd * swdy) / denom)
   }
   return { x: gx, y: gy }
-}
-
-function lowerBound(sorted: number[], value: number): number {
-  let lo = 0
-  let hi = sorted.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (sorted[mid] < value) lo = mid + 1
-    else hi = mid
-  }
-  return lo
 }
 
 /** A 1/2/5 x 10^k step that splits `range` into roughly `target` pieces. */
