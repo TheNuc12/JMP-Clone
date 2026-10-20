@@ -52,4 +52,27 @@ def cases():
            tol={"rtol": 3e-4}),
         fm("logistic separation", nom("tiny.sep_y"), [cont("tiny.x")], [["x"]]),
     ]
+    x1, x2, g3, g2 = cont("syn.x1"), cont("syn.x2"), nom("syn.g3"), nom("syn.g2")
+    fa, fb, fc = cont("factorial.A"), cont("factorial.B"), cont("factorial.C")
+    out += [
+        fm("stepwise backward drops interactions first", cont("syn.y"), [x1, x2, g3],
+           [["x1"], ["x2"], ["g3"], ["x1", "x2"], ["x1", "g3"]], params={"personality": "stepwise", "direction": "backward"}),
+        fm("stepwise forward excluded rows", cont("process.yield_pct"), [t, p, m], [["temperature"], ["pressure"], ["machine"]],
+           params={"personality": "stepwise", "direction": "forward"}, rows=list(range(0, 200, 2))),
+        fm("three-way factorial cross", cont("factorial.Resp"), [fa, fb, fc],
+           [["A"], ["B"], ["C"], ["A", "B"], ["A", "C"], ["B", "C"], ["A", "B", "C"]], options={k: True for k in OPTIONS}),
+        fm("cubic polynomial", cont("syn.y"), [x1], [["x1"], ["x1", "x1"], ["x1", "x1", "x1"]], options={k: True for k in OPTIONS}),
+        fm("categorical cross with value order", cont("syn.y"),
+           [nom("syn.g3", levels=["C", "A", "B"]), nom("syn.g2", levels=["H", "L"])],
+           [["g3"], ["g2"], ["g3", "g2"]], options={k: True for k in OPTIONS}),
+        fm("uncentered categorical cross", cont("syn.y"), [x1, g3], [["x1"], ["g3"], ["x1", "g3"]],
+           params={"center_polynomials": False}, options={"lsmeans": True}),
+        fm("missing continuous factor", cont("process.temperature"), [cont("process.yield_pct"), m],
+           [["yield_pct"], ["machine"]], options={k: True for k in OPTIONS}),
+        fm("saturated model", cont("tiny.pair_y"), [cont("tiny.x")], [["x"], ["x", "x"], ["x", "x", "x"]],
+           rows=[0, 1, 2, 3], options={k: True for k in OPTIONS}),
+        fm("logistic ordinal single effect", ordi("trial.response"), [cont("trial.age")], [["age"]], tol={"rtol": 3e-4}),
+        fm("logistic nominal cat factor", nom("process.machine"), [t, nom("process.shift")], [["temperature"], ["shift"]]),
+        fm("logistic binary interaction", nom("syn.yb"), [x1, g2], [["x1"], ["g2"], ["x1", "g2"]]),
+    ]
     return out

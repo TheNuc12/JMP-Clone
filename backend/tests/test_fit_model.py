@@ -309,3 +309,15 @@ def test_api_round_trip(client):
     bad = client.post("/api/analyze", json={**body, "params": {"effects": [["nope"]]}})
     assert bad.status_code == 400
     assert "nope" in bad.json()["detail"]
+
+
+def test_constant_response_has_no_spurious_tests():
+    """An exact fit's rounding residue must not turn into F or t ratios."""
+    y = cont("y", [5.0] * 8)
+    x = cont("x", [float(i) for i in range(1, 9)])
+    req = AnalyzeRequest(platform="fit_model", y=y, roles={"factors": [x]}, params={"effects": [["x"]]})
+    data = run_analysis(req).model_dump(mode="json")
+    model = table_rows(data, "Analysis of Variance")["Model"]
+    assert model[3] is None and model[4] is None  # F Ratio, Prob > F
+    for row in table_rows(data, "Parameter Estimates").values():
+        assert row[2] is None and row[3] is None  # t Ratio, Prob>|t|
