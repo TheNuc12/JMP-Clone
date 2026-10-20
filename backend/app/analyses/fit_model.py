@@ -189,6 +189,15 @@ def independent_columns(X: np.ndarray, cols: list[int]) -> tuple[list[int], dict
     return kept, zeroed
 
 
+def exact_fit_zero(sse: float, y: np.ndarray) -> float:
+    """An SSE at the level of floating point rounding means an exact fit: report it as 0.
+
+    Otherwise the rounding residue of an exact fit (e.g. a constant response) turns into
+    meaningless F and t ratios.
+    """
+    return 0.0 if sse <= (y.size * np.finfo(float).eps * float(np.linalg.norm(y))) ** 2 else sse
+
+
 def ols(X: np.ndarray, y: np.ndarray, cols: list[int] | None = None) -> OLSFit:
     cols = list(range(X.shape[1])) if cols is None else cols
     kept, zeroed = independent_columns(X, cols)
@@ -196,7 +205,7 @@ def ols(X: np.ndarray, y: np.ndarray, cols: list[int] | None = None) -> OLSFit:
     beta, *_ = np.linalg.lstsq(K, y, rcond=None)
     pred = K @ beta
     resid = y - pred
-    sse = float(resid @ resid)
+    sse = exact_fit_zero(float(resid @ resid), y)
     dfe = y.size - len(kept)
     if dfe > 0:
         cov = (sse / dfe) * np.linalg.inv(K.T @ K)
@@ -212,7 +221,7 @@ def sse_of(X: np.ndarray, y: np.ndarray, cols: list[int]) -> tuple[float, int]:
         return float(y @ y), 0
     beta, *_ = np.linalg.lstsq(X[:, kept], y, rcond=None)
     resid = y - X[:, kept] @ beta
-    return float(resid @ resid), len(kept)
+    return exact_fit_zero(float(resid @ resid), y), len(kept)
 
 
 def _p_f(f: float, df1: int, df2: int) -> float | None:
