@@ -3,6 +3,9 @@
 from ._refs import analyze, cont, nom, option_grid, ordi
 
 AREA = "fit_y_by_x"
+# statsmodels' ordinal standard errors come from a finite-difference Hessian, which moves
+# by ~1e-4 relative with summation order alone; compare those cases more loosely.
+ORDINAL_TOL = {"rtol": 3e-4}
 BIV = ["fit_mean", "fit_line", "fit_quadratic", "correlation"]
 ONEWAY = ["means_anova", "means_std", "t_test", "box_plots", "unequal_variances", "nonparametric", "tukey"]
 
@@ -54,12 +57,12 @@ def cases():
             fyx(f"logistic defect~temperature {tag}", nom("process.defect"), cont("process.temperature"), options=opts),
             fyx(f"logistic yb~x1 {tag}", nom("syn.yb"), cont("syn.x1"), options=opts),
             fyx(f"logistic nominal 3 {tag}", nom("process.machine"), cont("process.pressure"), options=opts),
-            fyx(f"logistic ordinal 3 {tag}", ordi("syn.yo", levels=["Low", "Mid", "High"]), cont("syn.x1"), options=opts),
-            fyx(f"logistic ordinal response {tag}", ordi("trial.response"), cont("trial.age"), options=opts),
+            fyx(f"logistic ordinal 3 {tag}", ordi("syn.yo", levels=["Low", "Mid", "High"]), cont("syn.x1"), options=opts, tol=ORDINAL_TOL),
+            fyx(f"logistic ordinal response {tag}", ordi("trial.response"), cont("trial.age"), options=opts, tol=ORDINAL_TOL),
         ]
     out += [
         fyx("logistic separation", nom("tiny.sep_y"), cont("tiny.x")),
-        fyx("logistic ordinal separation", ordi("tiny.sep_y"), cont("tiny.x")),
+        fyx("logistic ordinal separation", ordi("tiny.sep_y"), cont("tiny.x"), tol=ORDINAL_TOL),
         fyx("logistic one level", nom("tiny.cat_one"), cont("tiny.x")),
         fyx("logistic missing", nom("syn.g3"), cont("syn.y")),
     ]

@@ -2,6 +2,8 @@
 // behaviours the ports rely on.
 
 import type { AnalysisColumn, BoxStats, Value } from '../api/types'
+import { t } from './math/distributions'
+import { mean, sorted, std } from './math/stats'
 import { pyStr } from './pyformat'
 
 /** Would Python's float() accept this label (and not give NaN)? */
@@ -58,39 +60,13 @@ export function levelsOf(labels: (string | null)[], order?: string[] | null): st
 
 // ------------------------------------------------------------------ numpy-isms
 
-export const isFiniteNumber = (x: number) => Number.isFinite(x)
 
 export function finite(values: number[]): number[] {
   return values.filter(Number.isFinite)
 }
 
-export function sum(values: number[]): number {
-  let s = 0
-  for (const v of values) s += v
-  return s
-}
-
-export function mean(values: number[]): number {
-  return values.length ? sum(values) / values.length : NaN
-}
-
-/** Variance with `ddof` delta degrees of freedom (numpy's var). */
-export function variance(values: number[], ddof = 0): number {
-  const n = values.length
-  if (n - ddof <= 0) return NaN
-  const m = mean(values)
-  let ss = 0
-  for (const v of values) ss += (v - m) ** 2
-  return ss / (n - ddof)
-}
-
-export function std(values: number[], ddof = 0): number {
-  return Math.sqrt(variance(values, ddof))
-}
-
-export function sorted(values: number[]): number[] {
-  return [...values].sort((a, b) => a - b)
-}
+// numpy's reductions, bit for bit (pairwise summation).
+export { mean, sorted, std, sum, variance } from './math/stats'
 
 /** numpy's linear interpolation, written the same way for identical rounding. */
 function lerp(a: number, b: number, t: number): number {
@@ -139,4 +115,14 @@ export function boxStats(values: number[]): BoxStats | null {
 
 export function isConstant(values: number[]): boolean {
   return values.length > 0 && values.every((v) => v === values[0])
+}
+
+/** t-based confidence interval of the mean (null when n < 2). */
+export function meanCi(values: number[], level = 0.95): [number, number] | null {
+  const n = values.length
+  if (n < 2) return null
+  const m = mean(values)
+  const se = std(values, 1) / Math.sqrt(n)
+  const q = t.ppf(0.5 + level / 2, n - 1)
+  return [m - q * se, m + q * se]
 }

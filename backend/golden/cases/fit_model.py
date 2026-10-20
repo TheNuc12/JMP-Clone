@@ -47,7 +47,9 @@ def cases():
         fm("logistic binary", nom("students.sex"), [h, cont("students.weight")], [["height"], ["weight"]]),
         fm("logistic binary cat factor", nom("process.defect"), [t, m], [["temperature"], ["machine"]]),
         fm("logistic nominal", nom("process.machine"), [t, p], [["temperature"], ["pressure"]]),
-        fm("logistic ordinal", ordi("syn.yo", levels=["Low", "Mid", "High"]), [cont("syn.x1"), nom("syn.g2")], [["x1"], ["g2"]]),
+        # Finite-difference Hessian in statsmodels: standard errors agree to ~1e-4 relative.
+        fm("logistic ordinal", ordi("syn.yo", levels=["Low", "Mid", "High"]), [cont("syn.x1"), nom("syn.g2")], [["x1"], ["g2"]],
+           tol={"rtol": 3e-4}),
         fm("logistic separation", nom("tiny.sep_y"), [cont("tiny.x")], [["x"]]),
     ]
     return out
