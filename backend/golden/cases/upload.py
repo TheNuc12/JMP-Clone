@@ -3,6 +3,8 @@
 import base64
 import datetime as dt
 import io
+import re
+import zipfile
 
 from openpyxl import Workbook
 
@@ -26,7 +28,19 @@ def xlsx(name, rows, extra=None):
         extra(wb)
     buf = io.BytesIO()
     wb.save(buf)
-    return upload(name, "book.xlsx", buf.getvalue())
+    return upload(name, "book.xlsx", _deterministic(buf.getvalue()))
+
+
+def _deterministic(content: bytes) -> bytes:
+    """Rewrite the workbook with fixed timestamps so exports are reproducible."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(content)) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename == "docProps/core.xml":
+                data = re.sub(rb">\d{4}-\d\d-\d\dT[\d:.]+Z<", b">2026-01-01T00:00:00Z<", data)
+            dst.writestr(zipfile.ZipInfo(info.filename, date_time=(2026, 1, 1, 0, 0, 0)), data, zipfile.ZIP_DEFLATED)
+    return out.getvalue()
 
 
 def cases():

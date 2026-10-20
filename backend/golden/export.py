@@ -1,7 +1,8 @@
 """Export golden cases: requests run through the Python engine, with their exact results.
 
 The TypeScript engine (frontend/src/engine) must reproduce every case. Run with
-``uv run python -m golden.export`` from backend/. Case modules live in golden/cases/ and
+``uv run python -m golden.export [area ...]`` from backend/ (no areas: all of them, plus
+samples.json). Case modules live in golden/cases/ and
 define ``AREA`` and ``cases()``; each area is written to frontend/src/engine/golden/<area>.json.
 
 Column references keep the files small: ``{"$col": "dataset.column", "modeling_type": ...,
@@ -17,6 +18,7 @@ import importlib
 import json
 import math
 import pkgutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -117,10 +119,11 @@ def export_samples() -> None:
     SAMPLES_OUT.write_text(json.dumps(payload, separators=(",", ":")))
 
 
-def main() -> None:
-    export_samples()
+def main(areas: list[str]) -> None:
+    if not areas:
+        export_samples()
     for info in pkgutil.iter_modules(cases_pkg.__path__):
-        if info.name.startswith("_"):
+        if info.name.startswith("_") or (areas and info.name not in areas):
             continue
         module = importlib.import_module(f"{cases_pkg.__name__}.{info.name}")
         path = export_area(module)
@@ -128,4 +131,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
