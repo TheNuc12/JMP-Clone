@@ -66,14 +66,13 @@ export function ProfilerChart({ spec }: { spec: ProfilerPlot; rows: number[]; co
         <span className="profiler-value">{current ? formatNumber(current.value, 6) : '·'}</span>
         {current && current.upper > current.value && <span className="profiler-ci">±{formatNumber(current.upper - current.value, 5)}</span>}
       </div>
-      {traces.map((trace, i) => (
+      {traces.map((trace) => (
         <ProfilerPanel
           key={trace.factor.name}
           trace={trace}
           setting={settings[trace.factor.name]}
           prediction={current?.value ?? null}
           yRange={yRange}
-          showYAxis={i === 0}
           onChange={(v) => setFactor(trace.factor.name, v)}
         />
       ))}
@@ -86,14 +85,12 @@ function ProfilerPanel({
   setting,
   prediction,
   yRange,
-  showYAxis,
   onChange,
 }: {
   trace: Trace
   setting: number | string | null
   prediction: number | null
   yRange: [number, number]
-  showYAxis: boolean
   onChange: (value: number | string) => void
 }) {
   const { factor } = trace
@@ -146,7 +143,8 @@ function ProfilerPanel({
     return {
       dragmode: false,
       hovermode: false,
-      margin: { l: showYAxis ? 52 : 10, r: 8, t: 8, b: 36 },
+      // Every panel labels the shared y axis, since panels wrap onto new rows when space runs out.
+      margin: { l: 52, r: 8, t: 8, b: 36 },
       xaxis: axis({
         fixedrange: true,
         showgrid: false,
@@ -155,10 +153,10 @@ function ProfilerPanel({
           ? { tickmode: 'array' as const, tickvals: trace.x, ticktext: levels, range: [-0.5, levels.length - 0.5] }
           : { range: lo === hi ? [lo - 1, hi + 1] : [lo, hi] }),
       }),
-      yaxis: axis({ fixedrange: true, range: yRange, showticklabels: showYAxis }),
+      yaxis: axis({ fixedrange: true, range: yRange }),
       shapes,
     }
-  }, [factor, categorical, levels, trace.x, position, prediction, yRange, showYAxis])
+  }, [factor, categorical, levels, trace.x, position, prediction, yRange])
 
   /** Data x under the pointer, from Plotly's laid-out plot area. */
   const valueAt = (clientX: number): number | string | null => {
