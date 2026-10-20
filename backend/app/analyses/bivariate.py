@@ -38,6 +38,7 @@ def analyze(y_col: AnalysisColumn, x_col: AnalysisColumn, options: dict[str, boo
         nodes.append(r.warning(f"Only {n} row(s) with both {yname} and {xname} nonmissing; at least 2 are needed."))
     else:
         x_constant = bool(np.all(x == x[0]))
+        y_constant = bool(np.all(y == y[0]))
         if opts["fit_mean"]:
             curve, rep = _fit_mean(x, y)
             curves.append(curve)
@@ -45,6 +46,9 @@ def analyze(y_col: AnalysisColumn, x_col: AnalysisColumn, options: dict[str, boo
         if opts["fit_line"] or opts["fit_quadratic"]:
             if x_constant:
                 reports.append(r.warning(f"{xname} is constant; a regression line cannot be fit."))
+            elif y_constant:
+                # The slope is exactly zero; its t ratio would only report rounding noise.
+                reports.append(r.warning(f"{yname} is constant; there is no variation for a regression line to explain."))
             else:
                 if opts["fit_line"]:
                     curve, rep = _poly_fit(x, y, 1, xname, yname)

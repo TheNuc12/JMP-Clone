@@ -313,6 +313,11 @@ def _group_ranks(groups):
 
 
 def _tukey(levels, groups, mse):
+    if any(g.size < 2 for g in groups):
+        return r.outline(
+            "Means Comparisons: Tukey HSD",
+            [r.warning("Tukey HSD needs at least 2 rows in every level.")],
+        )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         res = stats.tukey_hsd(*groups)

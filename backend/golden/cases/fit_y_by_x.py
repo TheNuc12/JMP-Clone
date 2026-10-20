@@ -65,5 +65,14 @@ def cases():
         fyx("logistic ordinal separation", ordi("tiny.sep_y"), cont("tiny.x"), tol=ORDINAL_TOL),
         fyx("logistic one level", nom("tiny.cat_one"), cont("tiny.x")),
         fyx("logistic missing", nom("syn.g3"), cont("syn.y")),
+        # Paths the cases above don't reach.
+        fyx("bivariate quadratic two distinct x", cont("screening.Resp"), cont("screening.A"), options={"fit_quadratic": True}),
+        fyx("bivariate quadratic negative mean", cont("trial.baseline_bp"), cont("trial.bp_change"), options={"fit_quadratic": True}),
+        fyx("oneway singleton level", cont("tiny.pair_y"), nom("tiny.pair"), rows=[0, 1, 2, 4], options={k: True for k in ONEWAY}),
+        fyx("oneway tukey singleton among three", cont("students.weight"), ordi("students.age"), rows=list(range(10)), options={"tukey": True}),
+        fyx("contingency no complete rows", nom("tiny.cat_na"), nom("tiny.pair")),
+        fyx("logistic constant x", nom("tiny.pair"), cont("tiny.const")),
+        fyx("logistic nominal 4 levels", nom("process.operator"), cont("process.temperature"), options={"odds_ratios": True}),
+        fyx("logistic binary value order", nom("students.sex", levels=["M", "F"]), cont("students.height")),
     ]
     return out
