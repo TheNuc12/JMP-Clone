@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release": "npm run build && mkdir -p ../release && cp dist/Sift.html ../release/Sift.html"
   },
   "dependencies": {
     "plotly.js-cartesian-dist-min": "3.7.0",

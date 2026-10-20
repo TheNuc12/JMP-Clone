@@ -152,7 +152,7 @@ export interface LogisticPlot {
   cum_probs: number[][]
 }
 
-/** Backend-computed points; indices[i] is point i's position in the request's value arrays. */
+/** Engine-computed points; indices[i] is point i's position in the request's value arrays. */
 export interface IndexedScatterPlot {
   kind: 'indexed_scatter'
   x_label: string

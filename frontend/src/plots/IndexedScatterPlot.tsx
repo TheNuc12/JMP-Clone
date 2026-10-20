@@ -7,7 +7,7 @@ import { FIT, POINT } from '../lib/theme'
 import type { Column } from '../state/store'
 import { useNSelected, useSelected } from '../state/store'
 
-/** Points computed by the backend (residuals, actual by predicted, ...), linked to table rows. */
+/** Points computed by the engine (residuals, actual by predicted, ...), linked to table rows. */
 export function IndexedScatterChart({ spec, rows }: { spec: IndexedScatterPlot; rows: number[]; columns: Map<string, Column> }) {
   const selected = useSelected()
   const nSelected = useNSelected()

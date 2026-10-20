@@ -7,6 +7,21 @@ Open a data table, run analyses, and explore: **every graph and table is linked*
 selecting rows anywhere (a histogram bar, a brushed region of a scatter plot, a mosaic cell,
 rows in the data grid) highlights them everywhere.
 
+## Using Sift
+
+Sift is a single file: **[`release/Sift.html`](release/Sift.html)**, about 2 MB. Download it
+(or email it to yourself), save it anywhere, and double-click it. It opens in Chrome,
+Edge or Firefox and runs entirely on your computer:
+
+- **Nothing to install.** There's no server and no setup.
+- **Works offline.** Your data never leaves the computer.
+- **Sessions.** Use *File › Save Session* to keep your work in a `.sift` file, and
+  *File › Open* to continue on another computer. Each browser also autosaves, so you can
+  resume after closing the tab.
+
+If an email system blocks `.html` attachments, zip the file first. When opening it from an
+email, save the attachment and open the saved copy, because preview panes won't run it.
+
 ## Features
 
 ### Data
@@ -96,66 +111,71 @@ everywhere. Red-triangle menus on each report toggle extra output.
   panels with shared axes).
 - **Elements**: combine points, smoother, line of fit, line, bar, box plot and histogram.
 
-## Running it
+## Development
 
-You need Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/), and Node ≥ 20.
-
-**Development** (two terminals, with hot reload):
-
-```bash
-cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
-cd frontend && npm install && npm run dev        # http://localhost:5173
-```
-
-**Single process** (FastAPI serves the built frontend):
+You need Node ≥ 20. Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/) is only needed for
+the reference engine (below).
 
 ```bash
-cd frontend && npm install && npm run build
-cd ../backend && uv sync && uv run uvicorn app.main:app --port 8000   # http://localhost:8000
+cd frontend && npm install
+npm run dev            # http://localhost:5173 with hot reload
+npm run build          # frontend/dist/Sift.html
+npm run release        # build, then update release/Sift.html
 ```
 
 ## Tests
 
 ```bash
-cd backend && uv run pytest          # API; numbers checked against scipy/statsmodels and textbook values; DOE; degenerate data
-cd frontend && npm test              # store and undo, formulas, model evaluation, sessions, CSV, Graph Builder, client-side stats
+cd frontend && npm test              # engine (incl. golden cases), math library, store and undo, formulas, sessions, Graph Builder
 cd frontend && npm run typecheck
+cd backend && uv run pytest          # the Python reference engine
 ```
+
+### Golden cases
+
+The statistics engine runs in the browser (TypeScript). It was ported from a Python
+reference implementation in `backend/` (numpy, scipy, statsmodels), which stays in the repo
+as the source of truth:
+
+- `backend/golden/cases/` lists requests for every analysis, design type and file format.
+- `uv run python -m golden.export [area ...]` (from `backend/`) runs them through the Python
+  engine and writes the exact results to `frontend/src/engine/golden/*.json`.
+- `frontend/src/engine/golden.test.ts` checks that the TypeScript engine reproduces every
+  case. Numbers must agree to 1e-6 relative; text and structure must match exactly.
+- To change an analysis, change both engines, add a case, re-export and run the tests.
 
 ## Architecture
 
 ```
-frontend/ (React + TypeScript + Plotly)          backend/ (FastAPI + numpy/scipy/statsmodels)
-  tables, row states, formulas, undo ── POST /api/analyze {y, x, roles, params, values} ──▶ analyses/
-  plots drawn from local data        ◀── report: outlines, tables, plot specs ───────────   report.py
-  DOE dialog                         ── POST /api/doe {factors, design, ...} ────────────▶ doe.py
+frontend/src/
+  UI (React + Plotly)  ── api client ──▶  engine (Web Worker)
+    tables, row states,                     analyses/   Distribution, Fit Y by X, Fit Model,
+    formulas, undo,      ◀── reports ───                control charts, capability
+    sessions                                doe/        design construction and diagnostics
+                                            io.ts       CSV / Excel parsing
+                                            math/       distributions, linear algebra,
+                                                        model fitting, statistical tests
 ```
 
-- **The backend is stateless.** The browser owns the data tables, so editing, formulas,
-  undo and sessions all live in the frontend. Each analysis request carries the values it
-  needs (non-excluded rows only). Uploads are parsed server-side and returned as columns.
+- **One file, no server.** The build inlines everything into one HTML file: the app, the
+  engine, Plotly, styles and the sample data. The engine runs in a Web Worker, so long
+  computations never freeze the page. It's a classic worker, since module workers don't
+  start from `file://` pages, and calls fall back to the page if a browser refuses it.
 - **Reports are data.** An analysis returns a tree of generic nodes (outline, table,
-  summary, text, crosstab, plot). The frontend renders any report without knowing which
-  analysis produced it.
-  - The contract is defined in `backend/app/schemas.py` and mirrored in
-    `frontend/src/api/types.ts`.
-  - The `AnalyzeRequest` docstring lists the roles and params each platform reads.
+  summary, text, crosstab, plot). The UI renders any report without knowing which analysis
+  produced it.
+  - The contract is `frontend/src/api/types.ts`, mirrored by `backend/app/schemas.py`.
+  - The `AnalyzeRequest` docstring there lists the roles and params each platform reads.
 - **Plots are drawn from local data.** Plot specs carry only summary geometry: fitted
-  curves, bins, limits, cell counts and model coefficients. Points that the backend
-  computes (residuals, control chart statistics) carry indices back to table rows. This
-  is what lets selection link every view without a round trip.
+  curves, bins, limits, cell counts and model coefficients. Points the engine computes
+  (residuals, control chart statistics) carry indices back to table rows. This is what
+  lets selection link every view.
 - **Columns have stable ids.** Reports refer to columns by id, so renaming a column never
   breaks an open report. Formulas refer to columns by name and are rewritten on rename.
 
 ```
-backend/app/
-  main.py                    routes; serves frontend/dist when built
-  schemas.py                 API contract
-  io.py, samples.py          upload parsing, synthetic sample data
-  analyses/                  distribution, bivariate, oneway, contingency, logistic,
-                             fit_model, control_chart, capability, spc (shared SPC helpers)
-  doe.py, doe_designs.py     design construction, D-optimal search, diagnostics
 frontend/src/
+  engine/                    the statistics engine (see above); golden/ holds the golden cases
   state/store.ts             tables, row states, undo history, reports, dialogs (zustand)
   lib/formula/               formula parser, evaluator, dependency ordering
   lib/model.ts               evaluates fitted models (profiler, saved predictions)
@@ -163,6 +183,7 @@ frontend/src/
   components/                data grid, dialogs, report renderer, Plotly wrapper
   plots/                     linked plots for each report plot spec
   platforms/                 Distribution, Fit Y by X, Fit Model, quality, DOE, Graph Builder
+backend/                     Python reference engine (FastAPI app, analyses, DOE) and golden/
 ```
 
 ## Not yet supported

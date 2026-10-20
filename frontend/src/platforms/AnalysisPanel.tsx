@@ -25,7 +25,7 @@ interface Props {
   x?: string
   /** Extra role columns by id, e.g. { factors: [...] } or { subgroup: [...] }. */
   roles?: Record<string, string[]>
-  /** Request params, already in the backend's terms (column names, not ids). */
+  /** Request params, already in the engine's terms (column names, not ids). */
   params?: Record<string, unknown>
   options: Record<string, boolean>
   onOptionsChange: (options: Record<string, boolean>) => void
