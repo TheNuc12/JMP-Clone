@@ -65,3 +65,20 @@ def test_fit_normal_with_two_values(client):
     res = client.post("/api/analyze", json={"platform": "distribution", "y": y, "options": {"fit_normal": True}})
     assert res.status_code == 200, res.text
     assert "at least 3 observations" in res.text
+
+
+def test_constant_response_skips_regression(client):
+    y = {"name": "y", "modeling_type": "continuous", "values": [4, 4, 4, 4]}
+    x = {"name": "x", "modeling_type": "continuous", "values": [1, 2, 3, 4]}
+    res = client.post("/api/analyze", json={"platform": "fit_y_by_x", "y": y, "x": x, "options": {"fit_quadratic": True}})
+    assert res.status_code == 200, res.text
+    assert "y is constant; there is no variation for a regression line to explain." in res.text
+    assert "Parameter Estimates" not in res.text
+
+
+def test_tukey_with_a_single_row_level(client):
+    y = {"name": "y", "modeling_type": "continuous", "values": [1, 2, 3, 4, 5, 6.5]}
+    x = {"name": "g", "modeling_type": "nominal", "values": ["a", "a", "a", "b", "b", "c"]}
+    res = client.post("/api/analyze", json={"platform": "fit_y_by_x", "y": y, "x": x, "options": {"tukey": True}})
+    assert res.status_code == 200, res.text
+    assert "Tukey HSD needs at least 2 rows in every level." in res.text
