@@ -10,8 +10,8 @@ import type { AnalysisResult, HistogramPlot, ReferenceLine, ReportNode } from '.
 import { labelValues, numericValues } from '../common'
 import { chi2, norm } from '../math/distributions'
 import { mean as npMean, std } from '../math/stats'
-import { pyRound } from '../pyformat'
 import * as r from '../report'
+import { niceBins } from './distribution'
 import type { Request } from './index'
 import { makeSubgroups, movingRangeSigma, paramFloat, pooledSigma } from './spc'
 
@@ -199,45 +199,4 @@ function nonconformance(values: number[], mean: number, within: number, overall:
   if (usl !== null) rows.push(['Above USL', ...above])
   rows.push(['Total Outside', ...below.map((b, i) => total(b, above[i]))])
   return r.table([['Portion', 'text'], ['Observed %', 'percent'], ['Expected Within %', 'percent'], ['Expected Overall %', 'percent']], rows)
-}
-
-// ------------------------------------------------------------------------ bins
-// Same as nice_bins in the reference distribution.py (the Distribution port has its own).
-
-/** Round a positive number up to 1, 2 or 5 times a power of ten. */
-function niceNumber(x: number): number {
-  if (x <= 0 || !Number.isFinite(x)) return 1
-  const exp = Math.floor(Math.log10(x))
-  const frac = x / 10 ** exp
-  for (const nice of [1, 2, 5, 10]) if (frac <= nice + 1e-9) return nice * 10 ** exp
-  return 10 * 10 ** exp
-}
-
-/** Round a positive number to the nearest 1, 2 or 5 times a power of ten. */
-function nearestNiceNumber(x: number): number {
-  if (x <= 0 || !Number.isFinite(x)) return 1
-  const exp = Math.floor(Math.log10(x))
-  const frac = x / 10 ** exp
-  const nice = frac < 1.5 ? 1 : frac < 3 ? 2 : frac < 7 ? 5 : 10
-  return nice * 10 ** exp
-}
-
-/** Histogram bins with a 'nice' width; every value falls in [start, end). */
-function niceBins(values: number[]): HistogramPlot['bins'] {
-  let lo = Infinity
-  let hi = -Infinity
-  for (const v of values) {
-    if (v < lo) lo = v
-    if (v > hi) hi = v
-  }
-  let size: number
-  if (hi === lo) size = lo !== 0 ? niceNumber(Math.abs(lo) * 0.1) : 1
-  else size = nearestNiceNumber((hi - lo) / Math.max(5, Math.min(50, Math.ceil(Math.log2(values.length) + 1))))
-  const start = Math.floor(lo / size) * size
-  const nBins = Math.floor((hi - start) / size + 1e-9) + 1
-  let end = start + nBins * size
-  // Guard against floating point drift leaving the max on/over the right edge.
-  while (end <= hi) end += size
-  const digits = Math.max(0, -Math.floor(Math.log10(size)) + 2)
-  return { start: pyRound(start, digits), size, end: pyRound(end, digits) }
 }
