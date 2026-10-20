@@ -58,3 +58,10 @@ def test_degenerate_inputs(name):
     assert result["nodes"]
     if expect_warning:
         assert warnings_of(result), f"{name}: expected a warning"
+
+
+def test_fit_normal_with_two_values(client):
+    y = {"name": "y", "modeling_type": "continuous", "values": [1.0, 2.0, None]}
+    res = client.post("/api/analyze", json={"platform": "distribution", "y": y, "options": {"fit_normal": True}})
+    assert res.status_code == 200, res.text
+    assert "at least 3 observations" in res.text

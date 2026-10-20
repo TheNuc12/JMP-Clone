@@ -178,7 +178,9 @@ def _fitted_normal(v: np.ndarray, mean: float, sd: float):
             )
         ],
     )
-    if 3 <= n <= 5000:
+    if n < 3:
+        gof = r.warning("The goodness-of-fit test needs at least 3 observations.")
+    elif n <= 5000:
         w, p = stats.shapiro(v)
         gof = r.table([("Test", "text"), "W", ("Prob<W", "pvalue")], [["Shapiro-Wilk", w, p]])
     else:

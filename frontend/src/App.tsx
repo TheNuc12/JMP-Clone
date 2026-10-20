@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { api } from './api/client'
+import logo from './assets/logo.svg'
 import type { DataTablePayload, SampleInfo } from './api/types'
 import { ColumnsPanel, RowsPanel } from './components/ColumnsPanel'
 import { DataGrid } from './components/DataGrid'
@@ -205,7 +206,7 @@ export default function App() {
     >
       <header className="menubar">
         <div className="brand">
-          <img src="/favicon.svg" alt="" width={20} height={20} />
+          <img src={logo} alt="" width={20} height={20} />
           Sift
         </div>
         <Menu trigger="File" items={fileMenu} />
