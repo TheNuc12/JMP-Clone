@@ -4,6 +4,7 @@ import { parseCellInput, parseDelimited, plainText, rowsToTsv } from '../lib/csv
 import { formatValue } from '../lib/format'
 import type { Column } from '../state/store'
 import { useActiveTable, useStore } from '../state/store'
+import { useColumnContextMenu } from './ColumnContextMenu'
 import { ModelingIcon } from './ModelingIcon'
 import './data.css'
 
@@ -44,6 +45,7 @@ export function DataGrid() {
   const activeColumnId = useStore((s) => s.activeColumnId)
   const setActiveColumn = useStore((s) => s.setActiveColumn)
   const openDialog = useStore((s) => s.openDialog)
+  const [openColumnMenu, columnMenu] = useColumnContextMenu()
 
   const scrollRef = useRef<HTMLDivElement>(null)
   // Offscreen textarea that receives native copy / paste, which browsers don't send to a plain div.
@@ -430,9 +432,10 @@ export function DataGrid() {
                 key={c.id}
                 className={`grid-colhead${activeColumnId === c.id ? ' active' : ''}`}
                 style={{ width: COL_W }}
-                title={`${c.name} (${c.modelingType}${c.props.formula ? ', formula' : ''}). Double-click for Column Info.`}
+                title={`${c.name} (${c.modelingType}${c.props.formula ? ', formula' : ''}). Double-click for Column Info; right-click to insert or delete columns.`}
                 onClick={() => setActiveColumn(c.id)}
                 onDoubleClick={() => openDialog({ kind: 'column_info', columnId: c.id })}
+                onContextMenu={(e) => openColumnMenu(e, c.id)}
               >
                 <ModelingIcon type={c.modelingType} />
                 <span>{c.name}</span>
@@ -468,6 +471,7 @@ export function DataGrid() {
         </div>
       </div>
       <textarea ref={clipboardRef} className="clipboard-proxy" aria-hidden="true" tabIndex={-1} onPaste={onPaste} readOnly={false} />
+      {columnMenu}
     </>
   )
 }

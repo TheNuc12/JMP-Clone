@@ -1,5 +1,6 @@
 import type { ModelingType } from '../api/types'
 import { useActiveTable, useStore } from '../state/store'
+import { useColumnContextMenu } from './ColumnContextMenu'
 import { Menu } from './Menu'
 import { ModelingIcon } from './ModelingIcon'
 
@@ -15,6 +16,7 @@ export function ColumnsPanel() {
   const activeColumnId = useStore((s) => s.activeColumnId)
   const setActiveColumn = useStore((s) => s.setActiveColumn)
   const openDialog = useStore((s) => s.openDialog)
+  const [openColumnMenu, columnMenu] = useColumnContextMenu()
   if (!table) return null
   return (
     <div className="side-section">
@@ -33,7 +35,8 @@ export function ColumnsPanel() {
             className={activeColumnId === c.id ? 'active' : ''}
             onClick={() => setActiveColumn(c.id)}
             onDoubleClick={() => openDialog({ kind: 'column_info', columnId: c.id })}
-            title={`${c.name} — ${c.dataType}, ${c.modelingType}${c.props.formula ? ', formula' : ''}. Double-click for Column Info.`}
+            onContextMenu={(e) => openColumnMenu(e, c.id)}
+            title={`${c.name} — ${c.dataType}, ${c.modelingType}${c.props.formula ? ', formula' : ''}. Double-click for Column Info; right-click to insert or delete columns.`}
           >
             <Menu
               trigger={<ModelingIcon type={c.modelingType} />}
@@ -55,6 +58,7 @@ export function ColumnsPanel() {
           </li>
         ))}
       </ul>
+      {columnMenu}
     </div>
   )
 }

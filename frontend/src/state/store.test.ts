@@ -79,6 +79,21 @@ describe('editing', () => {
     expect(table().columns).toHaveLength(2)
   })
 
+  it('inserts a column to the left or right of another', () => {
+    const left = s().insertColumn(col('g').id, 'left')!
+    expect(table().columns.map((c) => c.name)).toEqual(['x', 'Column 3', 'g'])
+    expect(s().activeColumnId).toBe(left)
+    const right = s().insertColumn(col('g').id, 'right')!
+    expect(table().columns.map((c) => c.name)).toEqual(['x', 'Column 3', 'g', 'Column 4'])
+    const added = table().columns.find((c) => c.id === right)!
+    expect(added.values).toEqual([null, null, null, null])
+    expect(added.modelingType).toBe('continuous')
+    expect(s().insertColumn('nope', 'left')).toBeNull()
+    s().undo()
+    s().undo()
+    expect(table().columns.map((c) => c.name)).toEqual(['x', 'g'])
+  })
+
   it('exclude toggles like JMP', () => {
     s().selectRows([0, 1])
     s().toggleExcludeSelected()

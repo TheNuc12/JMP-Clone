@@ -31,7 +31,8 @@ email, save the attachment and open the saved copy, because preview panes won't 
 - **Editing**: double-click or start typing in a cell.
   - Enter, Tab and the arrow keys move between cells; Escape cancels an edit.
   - Copy and paste work with tab-separated text, so blocks from a spreadsheet paste in.
-  - Add or delete rows and columns.
+  - Add or delete rows and columns. Right-click a column header (or a column in the
+    Columns panel) to insert a column to its left or right.
   - Undo and redo with Ctrl+Z / Ctrl+Shift+Z.
 - **Column Info** (double-click a column header):
   - Rename the column, or change its data type or modeling type.

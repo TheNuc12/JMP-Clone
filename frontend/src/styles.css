@@ -1261,3 +1261,9 @@ button.big:not(.primary) {
   margin: 14px 0 6px;
   font-weight: 600;
 }
+
+.menu-list.context-menu {
+  position: fixed;
+  margin: 0;
+  min-width: 200px;
+}

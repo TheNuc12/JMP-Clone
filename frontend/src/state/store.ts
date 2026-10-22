@@ -137,6 +137,8 @@ interface State {
   setModelingType: (columnId: string, modelingType: ModelingType) => void
   updateColumn: (columnId: string, patch: ColumnPatch) => void
   addColumn: (column: NewColumn, index?: number) => string
+  /** Insert an empty numeric column beside another one and make it active. Returns its id. */
+  insertColumn: (besideId: string, side: 'left' | 'right') => string | null
   deleteColumns: (columnIds: string[]) => void
 
   // cells and rows
@@ -396,6 +398,16 @@ export const useStore = create<State>()((set, get) => {
         columns.splice(index ?? columns.length, 0, column)
         return { columns }
       })
+      return id
+    },
+
+    insertColumn: (besideId, side) => {
+      const t = activeTableOf(get())
+      const at = t ? t.columns.findIndex((c) => c.id === besideId) : -1
+      if (!t || at < 0) return null
+      const name = `Column ${t.columns.length + 1}`
+      const id = get().addColumn({ name, dataType: 'numeric', modelingType: 'continuous' }, side === 'left' ? at : at + 1)
+      set({ activeColumnId: id })
       return id
     },
 
